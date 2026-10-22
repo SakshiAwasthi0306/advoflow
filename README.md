@@ -129,19 +129,19 @@ API keys are read only on the server (`src/lib/config.ts` is `server-only`) and 
 DATABASE_URL=postgresql://USER:PASSWORD@HOST/DB?sslmode=require            # pooled, used by the app
 DATABASE_URL_UNPOOLED=postgresql://USER:PASSWORD@HOST/DB?sslmode=require    # direct, used for migrations (optional)
 
-npm run db:migrate        # creates/updates tables: applies db/migrations/*.sql once each (tracked in schema_migrations)
-npm run prisma:pull       # refreshes prisma/schema.prisma from the live tables and regenerates the client
+npm run db:migrate                # tables the CURRENT app uses (db/migrations/*.sql, schema "public")
+npm run prisma:migrate:deploy     # the Step 2 data model (prisma/migrations, schema "app") — see below before running on production
+npm run prisma:migrate:status     # which Prisma migrations are applied
 curl -s localhost:3000/api/health/ready   # confirms the app reaches the database through Prisma
 ```
 
-**How the database layer is organised now (Step 1)** — in plain terms:
+**Where the data model stands** — in plain terms:
 
-- **Tables are created by plain SQL files** in `db/migrations/`, run by `npm run db:migrate`. This is what already runs the live demo, and it is unchanged.
-- **Prisma is installed alongside** (`prisma/schema.prisma`, `prisma.config.ts`, client in `src/lib/db/prisma.ts`). Its schema was *read from* the existing tables (`prisma db pull`), not designed from scratch, and Prisma currently only answers the readiness check. It connects through `node-postgres` (the Prisma `pg` adapter), the same driver the rest of the app uses, so there is one driver and no extra database engine.
-- **Writes still go through `src/lib/store/postgres-store.ts`**, which saves a whole office in one transaction and depends on features Prisma's schema language cannot express (partial unique indexes on live cases, a generated full-text-search column, check constraints). Rewriting that now would risk the working app without adding anything.
-- **Step 2** designs the legal-domain data model in Prisma and moves migrations to Prisma Migrate, starting from a baseline of the current tables. Until then **do not run `prisma migrate dev` or `prisma db push`** against this database: they would try to recreate tables the SQL migrations own.
-- The generated client (`src/generated/prisma/`) is not committed; `npm install` regenerates it. `prisma db pull` rewrites `schema.prisma`, including its header comment.
-
+- **The new data model is designed and tested** (Step 2): `prisma/schema.prisma`, explained in [docs/data-model.md](docs/data-model.md). Its tables live in a separate Postgres schema called `app`, so they can sit in the same database as the current tables without clashing (both have tables called `cases`, `tasks`, …).
+- **The running app still uses the older tables** in schema `public`, created by `db/migrations/*.sql` and written by `src/lib/store/postgres-store.ts`. The next step ports the app's data access to Prisma; only then is production switched over (apply the Prisma migrations, re-seed the demo, drop the old tables). Until that step, **do not run `prisma:migrate:deploy` against the live database** — nothing would break, but the empty `app` tables would just sit there unused.
+- **The shared judgments table** (`public.legal_judgments`) is not part of the Prisma schema: it is reference data loaded by `scripts/judgments/` with a full-text-search column Prisma cannot manage. Research authorities point at it by id.
+- **Prisma talks to Postgres through `node-postgres`** (the Prisma `pg` adapter), the driver the rest of the app uses. The generated client (`src/generated/prisma/`) is not committed; `npm install` regenerates it.
+- Never run `prisma db push` or `prisma migrate reset` against a database with real data. Make schema changes with `npx prisma migrate dev --name <change>` against a local or Neon **branch** database, review the generated SQL, then commit it.
 ### Password mode and users
 
 ```bash
@@ -269,6 +269,7 @@ tests/                 unit + PostgreSQL tests; tests/e2e browser walkthrough
 npm run typecheck
 npm run lint
 npm test                    # unit and integration tests (vitest), incl. env validation, logging, error format and health checks
+PG_TEST_URL=postgres://postgres@localhost:5432/advoflow_test npm test   # also applies the Prisma migrations and checks the schema rules (office isolation, unique case numbers, one order per document, …)
 PG_TEST_URL=postgres://postgres@localhost:5432/advoflow_test npm test   # also runs PostgreSQL store tests (uses an EMPTY throwaway DB)
 ```
 

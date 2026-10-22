@@ -14,7 +14,8 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "create-user": "tsx scripts/create-user.ts",
     "prisma:generate": "prisma generate",
-    "prisma:pull": "prisma db pull && prisma generate",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:migrate:status": "prisma migrate status",
     "postinstall": "prisma generate"
   },
   "dependencies": {

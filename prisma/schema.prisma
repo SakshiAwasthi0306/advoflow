@@ -1,346 +1,731 @@
-// Prisma schema for AdvoFlow.
+// AdvoFlow data model (Step 2). Design notes and the decisions behind it: docs/data-model.md
 //
-// Step 1: the models below were INTROSPECTED from the existing database (`npm run prisma:pull`), not designed here.
-// Tables are still created by the SQL files in db/migrations (`npm run db:migrate`) and written by
-// src/lib/store/postgres-store.ts. Step 2 designs the legal-domain model and moves migrations to Prisma Migrate.
-// Do not run `prisma migrate dev` or `prisma db push` against this database before then: they would try to
-// recreate tables that the SQL migrations own.
+// All tables live in the Postgres schema "app" and are created by Prisma Migrate (prisma/migrations).
+// Until the app's data-access layer is switched to Prisma, the running app still uses the older tables in
+// "public" (db/migrations/*.sql). The shared judgments table (public.legal_judgments, loaded by
+// scripts/judgments/) is deliberately NOT in this schema: it is reference data with a full-text column
+// Prisma cannot manage, and is read with SQL by src/lib/research/connectors.ts.
 
 generator client {
   provider        = "prisma-client"
   output          = "../src/generated/prisma"
-  previewFeatures = ["partialIndexes"]
   moduleFormat    = "cjs"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
   provider = "postgresql"
+  schemas  = ["app"]
 }
 
-model audit_logs {
-  id        String   @id
-  office_id String
-  case_id   String?
-  at        DateTime @db.Timestamptz(6)
-  action    String
-  data      Json
-  offices   offices  @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+// ---------------------------------------------------------------- enums
 
-  @@index([office_id, at(sort: Desc)], map: "audit_office_at_idx")
+enum Role {
+  OWNER
+  ADVOCATE
+  CLERK
+  VIEWER
+
+  @@schema("app")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model cases {
-  id               String             @id
-  office_id        String
-  number_key       String?
-  status           String
-  client_id        String?
-  data             Json
-  updated_at       DateTime           @default(now()) @db.Timestamptz(6)
-  clients          clients?           @relation(fields: [client_id], references: [id], onUpdate: NoAction)
-  offices          offices            @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  client_updates   client_updates[]
-  court_orders     court_orders[]
-  date_changes     date_changes[]
-  documents        documents[]
-  hearings         hearings[]
-  research_reports research_reports[]
-  tasks            tasks[]
+enum Language {
+  EN
+  KN
 
-  @@unique([office_id, number_key], map: "cases_office_number_uniq", where: raw("((number_key IS NOT NULL) AND (status <> 'archived'::text))"))
-  @@index([office_id], map: "cases_office_idx")
+  @@schema("app")
 }
 
-model client_updates {
-  id         String   @id
-  office_id  String
-  case_id    String
-  data       Json
-  updated_at DateTime @default(now()) @db.Timestamptz(6)
-  cases      cases    @relation(fields: [case_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  offices    offices  @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+enum ContactChannel {
+  WHATSAPP
+  PHONE
+  EMAIL
+
+  @@schema("app")
 }
 
-model clients {
-  id         String   @id
-  office_id  String
+enum CourtLevel {
+  SUPREME
+  HIGH
+  DISTRICT
+  TRIBUNAL
+  OTHER
+
+  @@schema("app")
+}
+
+enum CaseStatus {
+  ACTIVE
+  CLOSED
+  ARCHIVED
+
+  @@schema("app")
+}
+
+enum PartySide {
+  PETITIONER
+  RESPONDENT
+  OTHER
+
+  @@schema("app")
+}
+
+enum DocumentKind {
+  ORDER
+  CAUSE_LIST
+  OTHER
+
+  @@schema("app")
+}
+
+enum TextSource {
+  PDF_TEXT
+  OCR
+  PASTED
+  PLAIN_TEXT
+  NONE
+
+  @@schema("app")
+}
+
+enum JobStatus {
+  NEEDS_REVIEW
+  APPROVED
+  REJECTED
+  FAILED
+
+  @@schema("app")
+}
+
+enum Extractor {
+  DEMO_RULES
+  ANTHROPIC
+  CASE_DIARY_IMPORT
+
+  @@schema("app")
+}
+
+enum HearingStatus {
+  AWAITING_VERIFICATION
+  CONFIRMED
+  HELD
+  SUPERSEDED
+  CANCELLED
+
+  @@schema("app")
+}
+
+enum TaskStatus {
+  OPEN
+  DONE
+
+  @@schema("app")
+}
+
+enum TaskPriority {
+  HIGH
+  NORMAL
+  LOW
+
+  @@schema("app")
+}
+
+enum TaskSource {
+  MANUAL
+  ORDER
+  RESEARCH
+  IMPORT
+
+  @@schema("app")
+}
+
+enum MessageStatus {
+  DRAFT
+  APPROVED
+  HANDED_OFF // WhatsApp/email opened with the text; NOT proof of delivery
+
+  @@schema("app")
+}
+
+enum ResearchMode {
+  DEMO
+  RULES
+  PARTIAL
+  LIVE
+
+  @@schema("app")
+}
+
+enum ReviewStatus {
+  NEEDS_REVIEW
+  REVIEWED
+
+  @@schema("app")
+}
+
+enum Stance {
+  SUPPORTS
+  LIMITS
+  CONTRADICTS
+  UNCLASSIFIED
+
+  @@schema("app")
+}
+
+enum Bindingness {
+  BINDING
+  PERSUASIVE
+  UNKNOWN
+
+  @@schema("app")
+}
+
+enum Verification {
+  FICTIONAL_DEMO
+  UNVERIFIED
+  SOURCE_RETRIEVED
+  ADVOCATE_REVIEWED
+
+  @@schema("app")
+}
+
+enum NoteAuthor {
+  ADVOCATE
+  AI
+
+  @@schema("app")
+}
+
+// ---------------------------------------------------------------- tenancy and people
+
+model Office {
+  id         String   @id @default(cuid())
   name       String
-  data       Json
-  updated_at DateTime @default(now()) @db.Timestamptz(6)
-  cases      cases[]
-  offices    offices  @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  demoLoaded Boolean  @default(false)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
 
-  @@index([office_id], map: "clients_office_idx")
+  memberships      Membership[]
+  courts           Court[]
+  clients          Client[]
+  cases            Case[]
+  caseParties      CaseParty[]
+  caseClients      CaseClient[]
+  documents        Document[]
+  extractionJobs   ExtractionJob[]
+  orders           CourtOrder[]
+  hearings         Hearing[]
+  dateChanges      HearingDateChange[]
+  tasks            Task[]
+  messages         ClientMessage[]
+  researchReports  ResearchReport[]
+  researchVersions ResearchVersion[]
+  authorities      ResearchAuthority[]
+  savedAuthorities SavedAuthority[]
+  researchNotes    ResearchNote[]
+  auditLogs        AuditLog[]
+
+  @@schema("app")
 }
 
-model court_orders {
-  id          String    @id
-  office_id   String
-  case_id     String
-  document_id String
-  order_date  DateTime? @db.Date
-  data        Json
-  updated_at  DateTime  @default(now()) @db.Timestamptz(6)
-  cases       cases     @relation(fields: [case_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  documents   documents @relation(fields: [document_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  offices     offices   @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique // stored lower-case
+  name         String
+  passwordHash String? // scrypt; set by the auth step, null until then
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
 
-  @@unique([office_id, document_id], map: "orders_document_uniq")
-  @@index([office_id, case_id, order_date], map: "orders_case_idx")
+  memberships Membership[]
+
+  @@schema("app")
 }
 
-model date_changes {
-  id         String   @id
-  office_id  String
-  case_id    String
-  data       Json
-  updated_at DateTime @default(now()) @db.Timestamptz(6)
-  cases      cases    @relation(fields: [case_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  offices    offices  @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+model Membership {
+  id        String   @id @default(cuid())
+  officeId  String
+  userId    String
+  role      Role
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  office Office @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  assignedTasks     Task[]
+  confirmedHearings Hearing[]
+
+  @@unique([officeId, userId])
+  @@unique([officeId, id]) // lets other tables reference "a member of THIS office"
+  @@index([userId])
+  @@schema("app")
 }
 
-model documents {
-  id              String            @id
-  office_id       String
-  case_id         String?
-  sha256          String
-  data            Json
-  updated_at      DateTime          @default(now()) @db.Timestamptz(6)
-  court_orders    court_orders[]
-  cases           cases?            @relation(fields: [case_id], references: [id], onUpdate: NoAction)
-  offices         offices           @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  processing_jobs processing_jobs[]
+// ---------------------------------------------------------------- reference data
 
-  @@index([office_id, sha256], map: "documents_office_sha_idx")
+/// Courts. Rows with officeId = null are the shared seeded list (Supreme Court, Karnataka High Court benches,
+/// Karnataka district courts); an office can add its own. Cases may also just name a court in free text.
+model Court {
+  id        String     @id @default(cuid())
+  officeId  String?
+  name      String
+  level     CourtLevel
+  state     String?
+  district  String?
+  bench     String?
+  code      String? // stable key for seeded rows, e.g. "KA-HC-BLR"
+  createdAt DateTime   @default(now()) @db.Timestamptz(6)
+
+  office Office? @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  cases  Case[]
+
+  @@unique([code])
+  @@index([officeId, name])
+  @@schema("app")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model hearings {
-  id           String   @id
-  office_id    String
-  case_id      String
-  hearing_date DateTime @db.Date
-  status       String
-  data         Json
-  updated_at   DateTime @default(now()) @db.Timestamptz(6)
-  cases        cases    @relation(fields: [case_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  offices      offices  @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+// ---------------------------------------------------------------- clients and cases
 
-  @@index([office_id, hearing_date], map: "hearings_date_idx")
+model Client {
+  id                String         @id @default(cuid())
+  officeId          String
+  name              String
+  phone             String?
+  email             String?
+  preferredLanguage Language       @default(EN)
+  preferredChannel  ContactChannel @default(WHATSAPP)
+  notes             String         @default("")
+  isDemo            Boolean        @default(false)
+  createdAt         DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime       @updatedAt @db.Timestamptz(6)
+
+  office   Office          @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  cases    CaseClient[]
+  messages ClientMessage[]
+
+  @@unique([officeId, id])
+  @@index([officeId, name])
+  @@schema("app")
 }
 
-model judicial_authorities {
-  report_id                String
-  version                  Int
-  item_id                  String
-  office_id                String
-  verification             String
-  fictional                Boolean
-  data                     Json
-  offices                  offices                  @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  research_report_versions research_report_versions @relation(fields: [report_id, version], references: [report_id, version], onDelete: Cascade, onUpdate: NoAction)
+model Case {
+  id        String     @id @default(cuid())
+  officeId  String
+  number    String // as written, e.g. "O.S. 482/2025"
+  numberKey String? // normalised "OS|482|2025" for matching; null when it cannot be parsed
+  cnr       String? // eCourts CNR, upper-case
+  caseType  String     @default("")
+  title     String     @default("")
+  courtId   String?
+  courtName String     @default("") // free text as written on the order; used when no Court row fits
+  stage     String     @default("")
+  status    CaseStatus @default(ACTIVE)
+  actingFor PartySide?
+  filedOn   DateTime?  @db.Date
+  isDemo    Boolean    @default(false)
+  createdAt DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime   @updatedAt @db.Timestamptz(6)
 
-  @@id([report_id, version, item_id])
+  office           Office              @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  court            Court?              @relation(fields: [courtId], references: [id], onDelete: SetNull)
+  parties          CaseParty[]
+  clients          CaseClient[]
+  documents        Document[]
+  orders           CourtOrder[]
+  hearings         Hearing[]
+  dateChanges      HearingDateChange[]
+  tasks            Task[]
+  messages         ClientMessage[]
+  researchReports  ResearchReport[]
+  savedAuthorities SavedAuthority[]
+
+  @@unique([officeId, id])
+  // One live case per normalised number in an office; archived cases may repeat a number.
+  @@unique([officeId, numberKey], map: "case_office_number_live_uniq", where: raw("\"numberKey\" IS NOT NULL AND status <> 'ARCHIVED'"))
+  @@unique([officeId, cnr], map: "case_office_cnr_uniq", where: raw("cnr IS NOT NULL"))
+  @@index([officeId, status, updatedAt(sort: Desc)])
+  @@schema("app")
 }
 
-model legal_issues {
-  report_id                String
-  version                  Int
-  item_id                  String
-  office_id                String
-  data                     Json
-  offices                  offices                  @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  research_report_versions research_report_versions @relation(fields: [report_id, version], references: [report_id, version], onDelete: Cascade, onUpdate: NoAction)
+model CaseParty {
+  id       String    @id @default(cuid())
+  officeId String
+  caseId   String
+  side     PartySide
+  name     String
+  position Int       @default(0) // order as listed in the cause title
 
-  @@id([report_id, version, item_id])
+  office Office @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  case   Case   @relation(fields: [officeId, caseId], references: [officeId, id], onDelete: Cascade)
+
+  @@index([officeId, caseId, side, position])
+  @@schema("app")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model legal_judgments {
-  id               String                   @id
-  source           String
-  court            String
-  bench            String?
-  title            String
-  citation         String?
-  neutral_citation String?
-  cnr              String?
-  case_type        String?
-  decision_date    DateTime?                @db.Date
-  disposal         String?
-  text             String
-  text_kind        String
-  pdf_url          String?
-  dataset          String
-  loaded_at        DateTime                 @default(now()) @db.Timestamptz(6)
-  search           Unsupported("tsvector")? @default(dbgenerated("(setweight(to_tsvector('english'::regconfig, COALESCE(text, ''::text)), 'A'::\"char\") || setweight(to_tsvector('english'::regconfig, ((COALESCE(title, ''::text) || ' '::text) || COALESCE(case_type, ''::text))), 'B'::\"char\"))"))
+model CaseClient {
+  officeId  String
+  caseId    String
+  clientId  String
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
 
-  @@index([search], type: Gin)
-  @@index([source, decision_date(sort: Desc)], map: "legal_judgments_source_date_idx")
+  office Office @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  case   Case   @relation(fields: [officeId, caseId], references: [officeId, id], onDelete: Cascade)
+  client Client @relation(fields: [officeId, clientId], references: [officeId, id], onDelete: Cascade)
+
+  @@id([caseId, clientId])
+  @@unique([caseId], map: "case_client_one_primary_uniq", where: raw("\"isPrimary\""))
+  @@index([officeId, clientId])
+  @@schema("app")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model office_memberships {
-  office_id String
-  user_id   String
-  role      String
-  offices   offices @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users     users   @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+// ---------------------------------------------------------------- documents and order review
 
-  @@id([office_id, user_id])
+model Document {
+  id           String       @id @default(cuid())
+  officeId     String
+  caseId       String?
+  filename     String
+  mime         String
+  size         Int
+  sha256       String
+  storageKey   String // path in private storage; never served directly
+  kind         DocumentKind @default(ORDER)
+  textExtract  String?
+  textSource   TextSource   @default(NONE)
+  isDemo       Boolean      @default(false)
+  uploadedById String? // Membership id
+  createdAt    DateTime     @default(now()) @db.Timestamptz(6)
+
+  office Office          @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  case   Case?           @relation(fields: [officeId, caseId], references: [officeId, id], onDelete: NoAction)
+  jobs   ExtractionJob[]
+  order  CourtOrder?
+
+  @@unique([officeId, id])
+  @@unique([officeId, sha256]) // the same file uploaded twice is one document
+  @@index([officeId, caseId])
+  @@schema("app")
 }
 
-model offices {
-  id                       String                     @id
-  name                     String
-  version                  Int                        @default(0)
-  demo_loaded              Boolean                    @default(false)
-  members                  Json                       @default("[]")
-  created_at               DateTime                   @default(now()) @db.Timestamptz(6)
-  audit_logs               audit_logs[]
-  cases                    cases[]
-  client_updates           client_updates[]
-  clients                  clients[]
-  court_orders             court_orders[]
-  date_changes             date_changes[]
-  documents                documents[]
-  hearings                 hearings[]
-  judicial_authorities     judicial_authorities[]
-  legal_issues             legal_issues[]
-  office_memberships       office_memberships[]
-  processing_jobs          processing_jobs[]
-  research_notes           research_notes[]
-  research_report_versions research_report_versions[]
-  research_reports         research_reports[]
-  saved_authorities        saved_authorities[]
-  source_passages          source_passages[]
-  statutory_provisions     statutory_provisions[]
-  tasks                    tasks[]
+/// One reading of a document (rules or AI), waiting for an advocate's decision.
+/// `extraction` and `match` are kept as JSON on purpose: they are the record of what was PROPOSED.
+model ExtractionJob {
+  id             String    @id @default(cuid())
+  officeId       String
+  documentId     String
+  idempotencyKey String
+  status         JobStatus @default(NEEDS_REVIEW)
+  extractor      Extractor
+  model          String?
+  hint           Json      @default("{}")
+  extraction     Json?
+  match          Json?
+  conflicts      String[]  @default([])
+  error          String?
+  createdById    String?
+  decidedById    String?
+  decidedAt      DateTime? @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+
+  office   Office      @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  document Document    @relation(fields: [officeId, documentId], references: [officeId, id], onDelete: Cascade)
+  order    CourtOrder?
+
+  @@unique([officeId, id])
+  @@index([officeId, status, createdAt])
+  @@index([officeId, idempotencyKey])
+  @@schema("app")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model processing_jobs {
-  id              String    @id
-  office_id       String
-  document_id     String
-  idempotency_key String
-  status          String
-  data            Json
-  updated_at      DateTime  @default(now()) @db.Timestamptz(6)
-  documents       documents @relation(fields: [document_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  offices         offices   @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+/// An order as APPROVED by an advocate: only the fields they ticked.
+model CourtOrder {
+  id                   String    @id @default(cuid())
+  officeId             String
+  caseId               String
+  documentId           String
+  jobId                String?
+  orderDate            DateTime? @db.Date
+  summary              String    @default("")
+  stage                String    @default("")
+  adjourned            Boolean   @default(false)
+  costs                String? // as stated, e.g. "Rs. 500 payable to the plaintiff"
+  directions           String[]  @default([])
+  nextHearingDate      DateTime? @db.Date
+  nextHearingConfirmed Boolean   @default(false)
+  approvedFields       String[]  @default([])
+  extractionSnapshot   Json?
+  approvedById         String?
+  approvedAt           DateTime  @default(now()) @db.Timestamptz(6)
+  isDemo               Boolean   @default(false)
 
-  @@index([office_id, idempotency_key], map: "jobs_office_key_idx")
+  office   Office         @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  case     Case           @relation(fields: [officeId, caseId], references: [officeId, id], onDelete: Cascade)
+  document Document       @relation(fields: [officeId, documentId], references: [officeId, id], onDelete: Restrict)
+  job      ExtractionJob? @relation(fields: [officeId, jobId], references: [officeId, id], onDelete: NoAction)
+
+  hearingsSet Hearing[]           @relation("HearingSourceOrder")
+  dateChanges HearingDateChange[]
+  tasks       Task[]
+  messages    ClientMessage[]
+
+  @@unique([officeId, id])
+  @@unique([officeId, documentId]) // a document becomes at most one order
+  @@unique([officeId, jobId])
+  @@index([officeId, caseId, orderDate])
+  @@schema("app")
 }
 
-model research_notes {
-  report_id                String
-  version                  Int
-  item_id                  String
-  office_id                String
-  author                   String
-  data                     Json
-  offices                  offices                  @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  research_report_versions research_report_versions @relation(fields: [report_id, version], references: [report_id, version], onDelete: Cascade, onUpdate: NoAction)
+// ---------------------------------------------------------------- hearings and tasks
 
-  @@id([report_id, version, item_id])
+/// Hearing dates keep their history: a moved date is SUPERSEDED, never edited or deleted.
+model Hearing {
+  id             String        @id @default(cuid())
+  officeId       String
+  caseId         String
+  date           DateTime      @db.Date
+  purpose        String        @default("")
+  status         HearingStatus
+  sourceOrderId  String?
+  supersededById String?
+  confirmedById  String?
+  confirmedAt    DateTime?     @db.Timestamptz(6)
+  createdAt      DateTime      @default(now()) @db.Timestamptz(6)
+
+  office       Office      @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  case         Case        @relation(fields: [officeId, caseId], references: [officeId, id], onDelete: Cascade)
+  sourceOrder  CourtOrder? @relation("HearingSourceOrder", fields: [officeId, sourceOrderId], references: [officeId, id], onDelete: NoAction)
+  supersededBy Hearing?    @relation("HearingSupersededBy", fields: [officeId, supersededById], references: [officeId, id], onDelete: NoAction)
+  supersedes   Hearing[]   @relation("HearingSupersededBy")
+  confirmedBy  Membership? @relation(fields: [officeId, confirmedById], references: [officeId, id], onDelete: NoAction)
+
+  @@unique([officeId, id])
+  @@index([officeId, date])
+  @@index([officeId, caseId, status])
+  @@schema("app")
 }
 
-model research_report_versions {
-  report_id            String
-  office_id            String
-  version              Int
-  mode                 String
-  data                 Json
-  updated_at           DateTime               @default(now()) @db.Timestamptz(6)
-  judicial_authorities judicial_authorities[]
-  legal_issues         legal_issues[]
-  research_notes       research_notes[]
-  offices              offices                @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  research_reports     research_reports       @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  saved_authorities    saved_authorities[]
-  source_passages      source_passages[]
-  statutory_provisions statutory_provisions[]
+model HearingDateChange {
+  id              String   @id @default(cuid())
+  officeId        String
+  caseId          String
+  fromDate        DateTime @db.Date
+  toDate          DateTime @db.Date
+  orderId         String?
+  affectedTaskIds String[] @default([])
+  reviewed        Boolean  @default(false)
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
 
-  @@id([report_id, version])
+  office Office      @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  case   Case        @relation(fields: [officeId, caseId], references: [officeId, id], onDelete: Cascade)
+  order  CourtOrder? @relation(fields: [officeId, orderId], references: [officeId, id], onDelete: NoAction)
+
+  @@index([officeId, caseId, createdAt])
+  @@schema("app")
 }
 
-model research_reports {
-  id                       String                     @id
-  office_id                String
-  case_id                  String
-  data                     Json
-  updated_at               DateTime                   @default(now()) @db.Timestamptz(6)
-  research_report_versions research_report_versions[]
-  cases                    cases                      @relation(fields: [case_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  offices                  offices                    @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+model Task {
+  id              String       @id @default(cuid())
+  officeId        String
+  caseId          String
+  title           String
+  description     String       @default("")
+  dueDate         DateTime?    @db.Date
+  priority        TaskPriority @default(NORMAL)
+  status          TaskStatus   @default(OPEN)
+  source          TaskSource   @default(MANUAL)
+  sourceOrderId   String?
+  sourceVersionId String?
+  dedupeKey       String? // stops retries from creating the same task twice
+  assigneeId      String?
+  rescheduleFrom  DateTime?    @db.Date // set when the hearing this task was due on moved; the advocate decides
+  rescheduleTo    DateTime?    @db.Date
+  createdById     String?
+  createdAt       DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime     @updatedAt @db.Timestamptz(6)
+  completedAt     DateTime?    @db.Timestamptz(6)
+
+  office        Office           @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  case          Case             @relation(fields: [officeId, caseId], references: [officeId, id], onDelete: Cascade)
+  sourceOrder   CourtOrder?      @relation(fields: [officeId, sourceOrderId], references: [officeId, id], onDelete: NoAction)
+  sourceVersion ResearchVersion? @relation(fields: [officeId, sourceVersionId], references: [officeId, id], onDelete: NoAction)
+  assignee      Membership?      @relation(fields: [officeId, assigneeId], references: [officeId, id], onDelete: NoAction)
+
+  @@unique([officeId, caseId, dedupeKey], map: "task_dedupe_uniq", where: raw("\"dedupeKey\" IS NOT NULL"))
+  @@index([officeId, status, dueDate])
+  @@index([officeId, caseId])
+  @@schema("app")
 }
 
-model saved_authorities {
-  report_id                String
-  version                  Int
-  item_id                  String
-  office_id                String
-  offices                  offices                  @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  research_report_versions research_report_versions @relation(fields: [report_id, version], references: [report_id, version], onDelete: Cascade, onUpdate: NoAction)
+// ---------------------------------------------------------------- client communication
 
-  @@id([report_id, version, item_id])
+model ClientMessage {
+  id            String          @id @default(cuid())
+  officeId      String
+  caseId        String
+  clientId      String?
+  lang          Language
+  text          String
+  status        MessageStatus   @default(DRAFT)
+  channel       ContactChannel?
+  sourceOrderId String?
+  handedOffAt   DateTime?       @db.Timestamptz(6)
+  createdAt     DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime        @updatedAt @db.Timestamptz(6)
+
+  office      Office      @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  case        Case        @relation(fields: [officeId, caseId], references: [officeId, id], onDelete: Cascade)
+  client      Client?     @relation(fields: [officeId, clientId], references: [officeId, id], onDelete: NoAction)
+  sourceOrder CourtOrder? @relation(fields: [officeId, sourceOrderId], references: [officeId, id], onDelete: NoAction)
+
+  @@unique([officeId, sourceOrderId, lang], map: "message_one_draft_per_order_lang_uniq", where: raw("\"sourceOrderId\" IS NOT NULL"))
+  @@index([officeId, caseId, createdAt])
+  @@schema("app")
 }
 
-model schema_migrations {
-  name       String   @id
-  applied_at DateTime @default(now()) @db.Timestamptz(6)
+// ---------------------------------------------------------------- legal research
+
+model ResearchReport {
+  id        String   @id @default(cuid())
+  officeId  String
+  caseId    String
+  title     String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  office   Office            @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  case     Case              @relation(fields: [officeId, caseId], references: [officeId, id], onDelete: Cascade)
+  versions ResearchVersion[]
+
+  @@unique([officeId, id])
+  @@index([officeId, caseId])
+  @@schema("app")
 }
 
-model source_passages {
-  report_id                String
-  version                  Int
-  authority_id             String
-  item_id                  String
-  office_id                String
-  data                     Json
-  offices                  offices                  @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  research_report_versions research_report_versions @relation(fields: [report_id, version], references: [report_id, version], onDelete: Cascade, onUpdate: NoAction)
+/// One run of the research pipeline. The analysis is a fixed snapshot (JSON) and is never edited after
+/// creation; only `status` and notes change. A rerun creates a new version.
+model ResearchVersion {
+  id               String       @id @default(cuid())
+  officeId         String
+  reportId         String
+  version          Int
+  question         String
+  actingFor        PartySide?
+  mode             ResearchMode
+  pipeline         String
+  status           ReviewStatus @default(NEEDS_REVIEW)
+  summary          String
+  orderIds         String[]     @default([])
+  documentIds      String[]     @default([])
+  issues           Json         @default("[]")
+  provisions       Json         @default("[]")
+  arguments        Json         @default("[]")
+  counterarguments Json         @default("[]")
+  missingFacts     Json         @default("[]")
+  nextSteps        Json         @default("[]")
+  limitations      Json         @default("[]")
+  sourcesChecked   Json         @default("[]")
+  createdById      String?
+  createdAt        DateTime     @default(now()) @db.Timestamptz(6)
+  reviewedAt       DateTime?    @db.Timestamptz(6)
 
-  @@id([report_id, version, authority_id, item_id])
+  office      Office              @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  report      ResearchReport      @relation(fields: [officeId, reportId], references: [officeId, id], onDelete: Cascade)
+  authorities ResearchAuthority[]
+  notes       ResearchNote[]
+  tasks       Task[]
+
+  @@unique([officeId, id])
+  @@unique([reportId, version])
+  @@schema("app")
 }
 
-model statutory_provisions {
-  report_id                String
-  version                  Int
-  item_id                  String
-  office_id                String
-  verification             String
-  data                     Json
-  offices                  offices                  @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  research_report_versions research_report_versions @relation(fields: [report_id, version], references: [report_id, version], onDelete: Cascade, onUpdate: NoAction)
+/// A judgment cited in a research version. Name, citation, court, date and URL are copied from the source
+/// record (never written by the AI). `judgmentId` points at public.legal_judgments when it came from open data.
+model ResearchAuthority {
+  id           String       @id @default(cuid())
+  officeId     String
+  versionId    String
+  connector    String // "demo" | "ecourts-opendata" | "indiankanoon"
+  sourceId     String
+  judgmentId   String? // public.legal_judgments.id (no foreign key: that table is outside this schema)
+  name         String
+  citation     String?
+  court        String
+  decisionDate DateTime?    @db.Date
+  bench        String?
+  url          String?
+  issue        String       @default("")
+  principle    String       @default("")
+  relevance    String       @default("")
+  distinctions String       @default("")
+  passages     Json         @default("[]")
+  stance       Stance       @default(UNCLASSIFIED)
+  bindingness  Bindingness  @default(UNKNOWN)
+  verification Verification
+  isFictional  Boolean      @default(false)
+  reviewedById String?
+  reviewedAt   DateTime?    @db.Timestamptz(6)
+  position     Int          @default(0)
 
-  @@id([report_id, version, item_id])
+  office  Office           @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  version ResearchVersion  @relation(fields: [officeId, versionId], references: [officeId, id], onDelete: Cascade)
+  saved   SavedAuthority[]
+
+  @@unique([officeId, id])
+  @@unique([versionId, sourceId])
+  @@index([officeId, judgmentId])
+  @@schema("app")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model tasks {
-  id         String    @id
-  office_id  String
-  case_id    String
-  due_date   DateTime? @db.Date
-  status     String
-  dedupe_key String?
-  data       Json
-  updated_at DateTime  @default(now()) @db.Timestamptz(6)
-  cases      cases     @relation(fields: [case_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  offices    offices   @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+model SavedAuthority {
+  id          String   @id @default(cuid())
+  officeId    String
+  caseId      String
+  authorityId String
+  savedById   String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
 
-  @@unique([office_id, case_id, dedupe_key], map: "tasks_dedupe_uniq", where: raw("(dedupe_key IS NOT NULL)"))
-  @@index([office_id, status, due_date], map: "tasks_due_idx")
+  office    Office            @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  case      Case              @relation(fields: [officeId, caseId], references: [officeId, id], onDelete: Cascade)
+  authority ResearchAuthority @relation(fields: [officeId, authorityId], references: [officeId, id], onDelete: Cascade)
+
+  @@unique([caseId, authorityId])
+  @@schema("app")
 }
 
-model users {
-  id                 String               @id
-  email              String               @unique
-  name               String
-  password_hash      String
-  created_at         DateTime             @default(now()) @db.Timestamptz(6)
-  office_memberships office_memberships[]
+model ResearchNote {
+  id        String     @id @default(cuid())
+  officeId  String
+  versionId String
+  text      String
+  author    NoteAuthor
+  authorId  String?
+  createdAt DateTime   @default(now()) @db.Timestamptz(6)
+
+  office  Office          @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  version ResearchVersion @relation(fields: [officeId, versionId], references: [officeId, id], onDelete: Cascade)
+
+  @@index([officeId, versionId, createdAt])
+  @@schema("app")
+}
+
+// ---------------------------------------------------------------- audit
+
+/// Append-only. The app never updates or deletes these rows.
+model AuditLog {
+  id       String   @id @default(cuid())
+  officeId String
+  userId   String?
+  action   String // e.g. "order.approved", "hearing.date_changed"
+  entity   String
+  entityId String
+  caseId   String?
+  detail   String   @default("")
+  at       DateTime @default(now()) @db.Timestamptz(6)
+
+  office Office @relation(fields: [officeId], references: [id], onDelete: Cascade)
+
+  @@index([officeId, at(sort: Desc)])
+  @@index([officeId, caseId, at])
+  @@schema("app")
 }

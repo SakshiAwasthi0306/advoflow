@@ -6,6 +6,7 @@ loadEnvConfig(process.cwd());
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
+  migrations: { path: "prisma/migrations" },
   // The CLI (db pull, and migrations from Step 2 on) uses the direct, non-pooled connection when there is one.
   datasource: { url: process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL || "" },
 });
