@@ -1,0 +1,346 @@
+// Prisma schema for AdvoFlow.
+//
+// Step 1: the models below were INTROSPECTED from the existing database (`npm run prisma:pull`), not designed here.
+// Tables are still created by the SQL files in db/migrations (`npm run db:migrate`) and written by
+// src/lib/store/postgres-store.ts. Step 2 designs the legal-domain model and moves migrations to Prisma Migrate.
+// Do not run `prisma migrate dev` or `prisma db push` against this database before then: they would try to
+// recreate tables that the SQL migrations own.
+
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
+  moduleFormat    = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model audit_logs {
+  id        String   @id
+  office_id String
+  case_id   String?
+  at        DateTime @db.Timestamptz(6)
+  action    String
+  data      Json
+  offices   offices  @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([office_id, at(sort: Desc)], map: "audit_office_at_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cases {
+  id               String             @id
+  office_id        String
+  number_key       String?
+  status           String
+  client_id        String?
+  data             Json
+  updated_at       DateTime           @default(now()) @db.Timestamptz(6)
+  clients          clients?           @relation(fields: [client_id], references: [id], onUpdate: NoAction)
+  offices          offices            @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  client_updates   client_updates[]
+  court_orders     court_orders[]
+  date_changes     date_changes[]
+  documents        documents[]
+  hearings         hearings[]
+  research_reports research_reports[]
+  tasks            tasks[]
+
+  @@unique([office_id, number_key], map: "cases_office_number_uniq", where: raw("((number_key IS NOT NULL) AND (status <> 'archived'::text))"))
+  @@index([office_id], map: "cases_office_idx")
+}
+
+model client_updates {
+  id         String   @id
+  office_id  String
+  case_id    String
+  data       Json
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  cases      cases    @relation(fields: [case_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  offices    offices  @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model clients {
+  id         String   @id
+  office_id  String
+  name       String
+  data       Json
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  cases      cases[]
+  offices    offices  @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([office_id], map: "clients_office_idx")
+}
+
+model court_orders {
+  id          String    @id
+  office_id   String
+  case_id     String
+  document_id String
+  order_date  DateTime? @db.Date
+  data        Json
+  updated_at  DateTime  @default(now()) @db.Timestamptz(6)
+  cases       cases     @relation(fields: [case_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  documents   documents @relation(fields: [document_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  offices     offices   @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([office_id, document_id], map: "orders_document_uniq")
+  @@index([office_id, case_id, order_date], map: "orders_case_idx")
+}
+
+model date_changes {
+  id         String   @id
+  office_id  String
+  case_id    String
+  data       Json
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  cases      cases    @relation(fields: [case_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  offices    offices  @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model documents {
+  id              String            @id
+  office_id       String
+  case_id         String?
+  sha256          String
+  data            Json
+  updated_at      DateTime          @default(now()) @db.Timestamptz(6)
+  court_orders    court_orders[]
+  cases           cases?            @relation(fields: [case_id], references: [id], onUpdate: NoAction)
+  offices         offices           @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  processing_jobs processing_jobs[]
+
+  @@index([office_id, sha256], map: "documents_office_sha_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model hearings {
+  id           String   @id
+  office_id    String
+  case_id      String
+  hearing_date DateTime @db.Date
+  status       String
+  data         Json
+  updated_at   DateTime @default(now()) @db.Timestamptz(6)
+  cases        cases    @relation(fields: [case_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  offices      offices  @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([office_id, hearing_date], map: "hearings_date_idx")
+}
+
+model judicial_authorities {
+  report_id                String
+  version                  Int
+  item_id                  String
+  office_id                String
+  verification             String
+  fictional                Boolean
+  data                     Json
+  offices                  offices                  @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  research_report_versions research_report_versions @relation(fields: [report_id, version], references: [report_id, version], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([report_id, version, item_id])
+}
+
+model legal_issues {
+  report_id                String
+  version                  Int
+  item_id                  String
+  office_id                String
+  data                     Json
+  offices                  offices                  @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  research_report_versions research_report_versions @relation(fields: [report_id, version], references: [report_id, version], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([report_id, version, item_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model legal_judgments {
+  id               String                   @id
+  source           String
+  court            String
+  bench            String?
+  title            String
+  citation         String?
+  neutral_citation String?
+  cnr              String?
+  case_type        String?
+  decision_date    DateTime?                @db.Date
+  disposal         String?
+  text             String
+  text_kind        String
+  pdf_url          String?
+  dataset          String
+  loaded_at        DateTime                 @default(now()) @db.Timestamptz(6)
+  search           Unsupported("tsvector")? @default(dbgenerated("(setweight(to_tsvector('english'::regconfig, COALESCE(text, ''::text)), 'A'::\"char\") || setweight(to_tsvector('english'::regconfig, ((COALESCE(title, ''::text) || ' '::text) || COALESCE(case_type, ''::text))), 'B'::\"char\"))"))
+
+  @@index([search], type: Gin)
+  @@index([source, decision_date(sort: Desc)], map: "legal_judgments_source_date_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model office_memberships {
+  office_id String
+  user_id   String
+  role      String
+  offices   offices @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users     users   @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([office_id, user_id])
+}
+
+model offices {
+  id                       String                     @id
+  name                     String
+  version                  Int                        @default(0)
+  demo_loaded              Boolean                    @default(false)
+  members                  Json                       @default("[]")
+  created_at               DateTime                   @default(now()) @db.Timestamptz(6)
+  audit_logs               audit_logs[]
+  cases                    cases[]
+  client_updates           client_updates[]
+  clients                  clients[]
+  court_orders             court_orders[]
+  date_changes             date_changes[]
+  documents                documents[]
+  hearings                 hearings[]
+  judicial_authorities     judicial_authorities[]
+  legal_issues             legal_issues[]
+  office_memberships       office_memberships[]
+  processing_jobs          processing_jobs[]
+  research_notes           research_notes[]
+  research_report_versions research_report_versions[]
+  research_reports         research_reports[]
+  saved_authorities        saved_authorities[]
+  source_passages          source_passages[]
+  statutory_provisions     statutory_provisions[]
+  tasks                    tasks[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model processing_jobs {
+  id              String    @id
+  office_id       String
+  document_id     String
+  idempotency_key String
+  status          String
+  data            Json
+  updated_at      DateTime  @default(now()) @db.Timestamptz(6)
+  documents       documents @relation(fields: [document_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  offices         offices   @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([office_id, idempotency_key], map: "jobs_office_key_idx")
+}
+
+model research_notes {
+  report_id                String
+  version                  Int
+  item_id                  String
+  office_id                String
+  author                   String
+  data                     Json
+  offices                  offices                  @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  research_report_versions research_report_versions @relation(fields: [report_id, version], references: [report_id, version], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([report_id, version, item_id])
+}
+
+model research_report_versions {
+  report_id            String
+  office_id            String
+  version              Int
+  mode                 String
+  data                 Json
+  updated_at           DateTime               @default(now()) @db.Timestamptz(6)
+  judicial_authorities judicial_authorities[]
+  legal_issues         legal_issues[]
+  research_notes       research_notes[]
+  offices              offices                @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  research_reports     research_reports       @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  saved_authorities    saved_authorities[]
+  source_passages      source_passages[]
+  statutory_provisions statutory_provisions[]
+
+  @@id([report_id, version])
+}
+
+model research_reports {
+  id                       String                     @id
+  office_id                String
+  case_id                  String
+  data                     Json
+  updated_at               DateTime                   @default(now()) @db.Timestamptz(6)
+  research_report_versions research_report_versions[]
+  cases                    cases                      @relation(fields: [case_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  offices                  offices                    @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model saved_authorities {
+  report_id                String
+  version                  Int
+  item_id                  String
+  office_id                String
+  offices                  offices                  @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  research_report_versions research_report_versions @relation(fields: [report_id, version], references: [report_id, version], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([report_id, version, item_id])
+}
+
+model schema_migrations {
+  name       String   @id
+  applied_at DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model source_passages {
+  report_id                String
+  version                  Int
+  authority_id             String
+  item_id                  String
+  office_id                String
+  data                     Json
+  offices                  offices                  @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  research_report_versions research_report_versions @relation(fields: [report_id, version], references: [report_id, version], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([report_id, version, authority_id, item_id])
+}
+
+model statutory_provisions {
+  report_id                String
+  version                  Int
+  item_id                  String
+  office_id                String
+  verification             String
+  data                     Json
+  offices                  offices                  @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  research_report_versions research_report_versions @relation(fields: [report_id, version], references: [report_id, version], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([report_id, version, item_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model tasks {
+  id         String    @id
+  office_id  String
+  case_id    String
+  due_date   DateTime? @db.Date
+  status     String
+  dedupe_key String?
+  data       Json
+  updated_at DateTime  @default(now()) @db.Timestamptz(6)
+  cases      cases     @relation(fields: [case_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  offices    offices   @relation(fields: [office_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([office_id, case_id, dedupe_key], map: "tasks_dedupe_uniq", where: raw("(dedupe_key IS NOT NULL)"))
+  @@index([office_id, status, due_date], map: "tasks_due_idx")
+}
+
+model users {
+  id                 String               @id
+  email              String               @unique
+  name               String
+  password_hash      String
+  created_at         DateTime             @default(now()) @db.Timestamptz(6)
+  office_memberships office_memberships[]
+}

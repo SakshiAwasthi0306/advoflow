@@ -2,6 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { DEMO_SESSION, readSession, SESSION_COOKIE } from "./auth";
 import { config } from "./config";
+import { UnauthenticatedError } from "./http";
 import type { Session } from "./types";
 
 /** The only source of officeId and role for any request. Never trust the request body for these. */
@@ -10,9 +11,7 @@ export function getSession(): Session | null {
   return readSession(cookies().get(SESSION_COOKIE)?.value, config.authSecret);
 }
 
-export class UnauthenticatedError extends Error {
-  status = 401;
-}
+export { UnauthenticatedError };
 
 export function requireSession(): Session {
   const s = getSession();

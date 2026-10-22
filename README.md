@@ -35,11 +35,20 @@ The **Settings** page in the app shows this same live/not-live status for the ru
 
 ## Quick start (demo mode, no keys)
 
-Requirements: Node.js 20 or 22, npm.
+Requirements:
+
+| Software | Version | Needed for |
+|---|---|---|
+| Node.js | 20.19+, 22.12+ or 24+ (CI uses 22) | everything (Prisma 7 sets this minimum) |
+| npm | 10+ | installing |
+| PostgreSQL | 14+ (Neon, local, or any host) | optional locally — demo mode uses files in `.data/`; required when hosted |
+| Python | 3.9+ | only for loading the eCourts judgments (`scripts/judgments/`) |
 
 ```bash
-npm install
+npm install            # also generates the Prisma client (postinstall)
+cp .env.example .env.local   # optional: everything works with no values set
 npm run dev            # http://localhost:3000
+curl -s localhost:3000/api/health    # {"status":"ok", ...}
 ```
 
 Open the dashboard and click **Load demo workspace**. It creates three fictional cases (each tagged *Demo*):
@@ -67,12 +76,38 @@ Remove the demo data any time from **Settings → Remove demo data** (your own r
 
 ---
 
+## Health checks
+
+| Endpoint | Meaning | Touches the database? | HTTP status |
+|---|---|---|---|
+| `GET /api/health` | **Liveness**: the app is running; is its configuration valid? | No | always `200`; body `status` is `ok` or `degraded` |
+| `GET /api/health/ready` | **Readiness**: can it serve requests right now? | Yes — `SELECT 1` through Prisma, 3 s timeout | `200` `ready` or `503` `not_ready` |
+
+Both are public (also in password mode), never cached, and contain no secrets: configuration problems are reported by variable **name**, database failures only as `timeout` or `connection_failed`. The full error goes to the server log with the same `requestId`.
+
+```bash
+curl -s http://localhost:3000/api/health
+# {"status":"ok","service":"advoflow","version":"0.1.0","commit":null,"time":"…","uptimeSeconds":12,"checks":{"config":{"status":"ok"}}}
+
+curl -s -w "\nHTTP %{http_code}\n" http://localhost:3000/api/health/ready
+# with PostgreSQL:   {"status":"ready",…,"checks":{"config":{"status":"ok"},"database":{"status":"up","latencyMs":41}},"requestId":"…"}   HTTP 200
+# demo, no database: {"status":"ready",…,"database":{"status":"not_configured","note":"DATABASE_URL not set: demo file store in use"}}   HTTP 200
+# database down:     {"status":"not_ready",…,"database":{"status":"down","latencyMs":3001,"error":"timeout"}}   HTTP 503
+```
+
+A database is *required* for readiness when running on Vercel or when `RESEARCH_CONNECTOR=opendata`. No Anthropic key is needed for either endpoint.
+
+**API errors** from every route share one shape: `{"error": "<message>", "code": "VALIDATION_ERROR" | "UNAUTHENTICATED" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT" | "RATE_LIMITED" | "INTERNAL_ERROR", "requestId": "…"}` (also sent as the `x-request-id` header). Unexpected errors return a generic message; the details are only in the log.
+
+**Logs** are JSON lines (`{"level":"error","time":"…","msg":"request failed","service":"advoflow","requestId":"…",…}`) on stdout/stderr. Fields named like passwords, tokens, keys or URLs, and any connection string inside a message, are masked. Set `LOG_LEVEL` to `debug`, `info` (default), `warn` or `error`.
+
 ## Configuration
 
-Copy `.env.example` to `.env.local` and set only what you need:
+Copy `.env.example` to `.env.local` and set only what you need. Every variable is validated at startup by `src/lib/env.ts`; problems are logged once (`configuration problems`) and shown in `GET /api/health` by name, never by value. An invalid value is ignored rather than half-used, and an unrecognised `AUTH_MODE` is treated as `password` so data is never exposed by a typo.
 
 | Variable | Purpose |
 |---|---|
+| `APP_URL` | Public base URL of the app, e.g. `https://advoflow-phi.vercel.app` (optional; validated if set) |
 | `AUTH_MODE` | `demo` (default) or `password` |
 | `AUTH_SECRET` | Required in password mode. 32+ random characters |
 | `DATABASE_URL` | PostgreSQL URL. Empty = local file store |
@@ -83,15 +118,29 @@ Copy `.env.example` to `.env.local` and set only what you need:
 | `ANTHROPIC_MODEL` | Claude model id (default `claude-sonnet-4-5`) |
 | `RESEARCH_CONNECTOR` | `demo` (fictional corpus), `opendata` (real eCourts judgments in PostgreSQL), `indiankanoon`, or `none` |
 | `INDIAN_KANOON_API_TOKEN` | Token for the Indian Kanoon connector |
+| `LOG_LEVEL` | `debug`, `info` (default), `warn`, `error` |
 
 API keys are read only on the server (`src/lib/config.ts` is `server-only`) and are never sent to the browser. An automated test fails if any client component references them.
 
-### PostgreSQL
+### PostgreSQL and Prisma
 
 ```bash
-export DATABASE_URL=postgres://user:pass@host:5432/advoflow
-npm run db:migrate                     # applies db/migrations/*.sql once each
+# in .env.local (never commit it)
+DATABASE_URL=postgresql://USER:PASSWORD@HOST/DB?sslmode=require            # pooled, used by the app
+DATABASE_URL_UNPOOLED=postgresql://USER:PASSWORD@HOST/DB?sslmode=require    # direct, used for migrations (optional)
+
+npm run db:migrate        # creates/updates tables: applies db/migrations/*.sql once each (tracked in schema_migrations)
+npm run prisma:pull       # refreshes prisma/schema.prisma from the live tables and regenerates the client
+curl -s localhost:3000/api/health/ready   # confirms the app reaches the database through Prisma
 ```
+
+**How the database layer is organised now (Step 1)** — in plain terms:
+
+- **Tables are created by plain SQL files** in `db/migrations/`, run by `npm run db:migrate`. This is what already runs the live demo, and it is unchanged.
+- **Prisma is installed alongside** (`prisma/schema.prisma`, `prisma.config.ts`, client in `src/lib/db/prisma.ts`). Its schema was *read from* the existing tables (`prisma db pull`), not designed from scratch, and Prisma currently only answers the readiness check. It connects through `node-postgres` (the Prisma `pg` adapter), the same driver the rest of the app uses, so there is one driver and no extra database engine.
+- **Writes still go through `src/lib/store/postgres-store.ts`**, which saves a whole office in one transaction and depends on features Prisma's schema language cannot express (partial unique indexes on live cases, a generated full-text-search column, check constraints). Rewriting that now would risk the working app without adding anything.
+- **Step 2** designs the legal-domain data model in Prisma and moves migrations to Prisma Migrate, starting from a baseline of the current tables. Until then **do not run `prisma migrate dev` or `prisma db push`** against this database: they would try to recreate tables the SQL migrations own.
+- The generated client (`src/generated/prisma/`) is not committed; `npm install` regenerates it. `prisma db pull` rewrites `schema.prisma`, including its header comment.
 
 ### Password mode and users
 
@@ -198,6 +247,11 @@ Research:   pipeline.ts → connectors.ts (demo corpus | Indian Kanoon) → serv
 src/app/              pages (dashboard, cases, upload, review, calendar, tasks, research, clients, reports, settings, login) and /api routes
 src/components/        design system (ui.tsx, status.tsx), shell, forms and interactive widgets
 src/lib/               types, schemas, dates, auth, config, storage
+src/lib/env.ts         environment validation (names only in errors)
+src/lib/logger.ts      structured JSON logging with secret masking
+src/lib/http.ts        API error format and request ids
+src/lib/health.ts      liveness / readiness logic; routes in src/app/api/health/
+src/lib/db/prisma.ts   Prisma Client (pg adapter); prisma/schema.prisma, prisma.config.ts
 src/lib/services/      business logic
 src/lib/extraction/    text extraction, demo and AI extractors
 src/lib/research/      connectors, demo corpus (fictional), demo rules, pipeline
@@ -214,7 +268,7 @@ tests/                 unit + PostgreSQL tests; tests/e2e browser walkthrough
 ```bash
 npm run typecheck
 npm run lint
-npm test                    # unit and integration tests (vitest)
+npm test                    # unit and integration tests (vitest), incl. env validation, logging, error format and health checks
 PG_TEST_URL=postgres://postgres@localhost:5432/advoflow_test npm test   # also runs PostgreSQL store tests (uses an EMPTY throwaway DB)
 ```
 
@@ -274,6 +328,13 @@ No compliance certification is claimed.
 - Keep the Vercel function region next to the database (the demo uses `sin1` with Neon in `ap-southeast-1`).
 
 ---
+
+## Setup steps that need you
+
+- **Your own `.env.local`**: copy `.env.example`; fill `DATABASE_URL` (and `DATABASE_URL_UNPOOLED`) if you want PostgreSQL locally. The hosted demo's values live in Vercel → Project → Settings → Environment Variables; `vercel env pull .env.local` copies them if you need them on another machine.
+- **`APP_URL`** is not set on Vercel yet; add it (e.g. `https://advoflow-phi.vercel.app`) when something needs absolute links.
+- **Rotate the Neon database password** (Neon → Roles → Reset password) because it was shared in a chat during setup, then update `DATABASE_URL` / `DATABASE_URL_UNPOOLED` in Vercel and `.env.local`.
+- **`ANTHROPIC_API_KEY`** and **`INDIAN_KANOON_API_TOKEN`** are optional and not set; the app runs without them.
 
 ## Known limitations
 

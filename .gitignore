@@ -14,3 +14,4 @@ npm-debug.log*
 .env*
 !.env.example
 .venv-judgments/
+/src/generated/
