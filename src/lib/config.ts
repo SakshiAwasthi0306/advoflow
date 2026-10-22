@@ -10,7 +10,7 @@ export const config = {
   dataDir: process.env.ADVOFLOW_DATA_DIR || ".data",
   anthropicKey: process.env.ANTHROPIC_API_KEY || "",
   anthropicModel: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5",
-  researchConnector: (process.env.RESEARCH_CONNECTOR || "demo") as "demo" | "indiankanoon" | "none",
+  researchConnector: (process.env.RESEARCH_CONNECTOR || "demo") as "demo" | "indiankanoon" | "opendata" | "none",
   indianKanoonToken: process.env.INDIAN_KANOON_API_TOKEN || "",
   maxUploadBytes: 15 * 1024 * 1024,
 };
@@ -24,6 +24,8 @@ export function integrationStatus() {
     research:
       config.researchConnector === "indiankanoon" && config.indianKanoonToken
         ? { live: true, label: "Indian Kanoon API (experimental connector)" }
+        : config.researchConnector === "opendata" && config.databaseUrl
+          ? { live: true, label: "eCourts open data: Supreme Court headnotes + Karnataka HC (keyword search)" }
         : config.researchConnector === "none"
           ? { live: false, label: "No legal source connected" }
           : { live: false, label: "Demo corpus of FICTIONAL authorities" },

@@ -122,6 +122,20 @@ export function demoIssues(input: ResearchInput) {
       return docs.filter((d) => !d.fictional || templates.some((t) => t.sources.some((p) => d.sourceId.startsWith(p))));
     },
     annotate(doc: RetrievedDoc): Partial<Authority> {
+      const bindingness: Authority["bindingness"] = /Supreme Court/.test(doc.court) ? "binding" : /Karnataka/.test(doc.court) ? "binding" : "persuasive";
+      if (!doc.fictional) {
+        // A real judgment found by keyword search. Without AI we cannot say what it decides, so we say so.
+        const issue = issues[0];
+        return {
+          issue: issue?.title ?? "",
+          materialFacts: "",
+          principle: "",
+          relevance: `Found by keyword search for this issue${doc.matchedTerms?.length ? ` (matched: ${doc.matchedTerms.join(", ")})` : ""}. Not analysed: read the passage and the judgment to decide whether it is relevant at all.`,
+          distinctions: "Not assessed. Compare the facts and the question decided with your case.",
+          stance: "unclassified",
+          bindingness,
+        };
+      }
       const idx = Math.max(0, templates.findIndex((x) => x.sources.some((p) => doc.sourceId.startsWith(p))));
       const t = templates[idx];
       const stance = t.stance(input.actingFor, doc.sourceId);
@@ -132,12 +146,14 @@ export function demoIssues(input: ResearchInput) {
         relevance: `Discusses ${issues[idx].title.toLowerCase()}, an issue raised by the latest order.`,
         distinctions: doc.sourceId === "demo-ws-2" ? "Applies only if this is a commercial suit — not yet established." : "Facts of this (fictional) case may differ; compare before relying on it.",
         stance,
-        bindingness: /Supreme Court/.test(doc.court) ? "binding" : /Karnataka/.test(doc.court) ? "binding" : "persuasive",
+        bindingness,
       };
     },
     build(authorities: Authority[]) {
+      // Arguments and counterarguments are only assembled from authorities whose stance is known (the fictional demo set).
       const sup = authorities.filter((a) => a.stance === "supports");
-      const against = authorities.filter((a) => a.stance !== "supports");
+      const against = authorities.filter((a) => a.stance === "limits" || a.stance === "contradicts");
+      const real = authorities.filter((a) => !a.fictional);
       const args: Argument[] = sup.slice(0, 2).map((a) => ({
         id: newId("arg"),
         proposition: `Based on ${a.name}: ${a.principle}`,
@@ -151,12 +167,15 @@ export function demoIssues(input: ResearchInput) {
       const counters: Counterargument[] = against.map((a) => ({ id: newId("ctr"), point: a.principle, authorityIds: [a.id], risk: a.distinctions }));
       const steps: NextStep[] = [
         ...templates.flatMap((t) => t.steps).map((s) => ({ id: newId("step"), ...s, taskId: null })),
-        ...authorities.slice(0, 2).map((a) => ({ id: newId("step"), text: `Read ${a.passages[0]?.locator ?? "the key passage"} of ${a.name} and compare its facts.`, kind: "read" as const, taskId: null })),
+        ...authorities.slice(0, 2).map((a) => ({ id: newId("step"), text: a.fictional ? `Read ${a.passages[0]?.locator ?? "the key passage"} of ${a.name} and compare its facts.` : `Read ${a.name}${a.citation ? ` (${a.citation})` : ""} and decide whether it addresses this issue at all.`, kind: "read" as const, taskId: null })),
         { id: newId("step"), text: "Check whether each authority is still good law before citing it.", kind: "verify" as const, taskId: null },
       ];
+      const found = real.length
+        ? `${real.length} real judgment${real.length === 1 ? " was" : "s were"} found by keyword search in the eCourts open data. They have not been analysed: read each one before relying on it.`
+        : `${authorities.length} demo authorit${authorities.length === 1 ? "y was" : "ies were"} retrieved (${sup.length} supporting, ${against.length} limiting or contrary). All demo judgments are fictional.`;
       const summary = latest
-        ? `The latest approved order${latest.orderDate ? ` (${latest.orderDate})` : ""} raises: ${issues.map((i) => i.title.toLowerCase()).join("; ")}. ${authorities.length} demo authorit${authorities.length === 1 ? "y was" : "ies were"} retrieved (${sup.length} supporting, ${against.length} limiting or contrary). All demo judgments are fictional.`
-        : `No approved order was selected. Issues are based on the case record only.`;
+        ? `The latest approved order${latest.orderDate ? ` (${latest.orderDate})` : ""} raises: ${issues.map((i) => i.title.toLowerCase()).join("; ")}. ${found}`
+        : `No approved order was selected. Issues are based on the case record only. ${real.length ? found : ""}`.trim();
       return { summary, arguments: args, counterarguments: counters, nextSteps: steps };
     },
   };

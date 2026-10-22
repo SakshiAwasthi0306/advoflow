@@ -7,3 +7,5 @@ node_modules
 .neon
 *.tsbuildinfo
 .DS_Store
+.venv-judgments
+scripts/judgments

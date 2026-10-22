@@ -4,7 +4,7 @@ import { config } from "../config";
 import { aiIssueSchema, aiSynthesisSchema } from "../schemas";
 import type { Argument, Authority, CaseRecord, CourtOrder, Counterargument, LegalIssue, NextStep, Provision, ResearchVersion } from "../types";
 import { newId, nowISO } from "../util";
-import { getConnector, type ResearchConnector, type RetrievedDoc } from "./connectors";
+import { getConnector, OPEN_DATA_ATTRIBUTION, type ResearchConnector, type RetrievedDoc } from "./connectors";
 import { demoIssues } from "./demo-rules";
 
 export interface ResearchInput {
@@ -69,14 +69,15 @@ export async function runResearch(input: ResearchInput): Promise<Draft> {
     const { docs, checked } = await retrieve(connector, base.queries);
     const authorities = base.relevant(docs).map((doc) => authorityFrom(doc, base.annotate(doc)));
     const built = base.build(authorities);
+    const real = !!connector && !connector.fictional;
     limitations.push(
-      "Demo mode: issues and arguments come from fixed rules, not AI analysis.",
-      connector?.fictional ? "All judgments shown are FICTIONAL demo records. Do not cite them." : "Judgments come from the connected source and have not been reviewed.",
+      real ? "No AI is connected: issues come from fixed rules, and judgments were matched by keywords only, not read or analysed." : "Demo mode: issues and arguments come from fixed rules, not AI analysis.",
+      connector?.fictional ? "All judgments shown are FICTIONAL demo records. Do not cite them." : connector?.id === "ecourts-opendata" ? `Source: ${OPEN_DATA_ATTRIBUTION} Karnataka High Court entries are searched on their opening lines only.` : "Judgments come from the connected source and have not been reviewed.",
       "Statutory provisions are listed from a fixed demo table and have not been checked against official text.",
       "No subsequent-treatment (good-law) check has been run.",
     );
     return {
-      createdAt: nowISO(), createdBy: input.createdBy, mode: "demo", pipeline: `demo-rules/${connector?.id ?? "none"}`,
+      createdAt: nowISO(), createdBy: input.createdBy, mode: real ? "rules" : "demo", pipeline: `demo-rules/${connector?.id ?? "none"}`,
       question: input.question, orderIds: input.orders.map((o) => o.id), documentIds: input.documents.map((d) => d.id),
       summary: built.summary, issues: base.issues, provisions: base.provisions, authorities,
       arguments: built.arguments, counterarguments: built.counterarguments, missingFacts: base.missingFacts, nextSteps: built.nextSteps,
@@ -138,6 +139,7 @@ Return ONLY JSON: {summary, authorities:[{sourceId, issue, materialFacts, princi
   const counters: Counterargument[] = step2.counterarguments.map((c) => ({ id: newId("ctr"), point: c.point, authorityIds: mapIds(c.authorityIds), risk: c.risk }));
   if (dropped) limitations.push(`${dropped} authority reference(s) from the AI did not match any retrieved source and were removed.`);
   if (docs.some((d) => d.fictional)) limitations.push("The connected source is the FICTIONAL demo corpus. Do not cite these judgments.");
+  if (connector?.id === "ecourts-opendata") limitations.push(`Source: ${OPEN_DATA_ATTRIBUTION} The AI saw only the stored headnotes or opening lines, not full judgments.`);
   limitations.push("No subsequent-treatment (good-law) check is available in this build. Verify each authority before relying on it.");
 
   return {

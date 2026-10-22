@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { pageData } from "@/lib/server";
 import { config } from "@/lib/config";
+import { OPEN_DATA_ATTRIBUTION } from "@/lib/research/attribution";
 import { Badge, Card, DemoBadge, EmptyState, Notice, PageHeader } from "@/components/ui";
 import { CaseOrderPicker } from "@/components/research-widgets";
 
@@ -16,6 +17,8 @@ export default async function ResearchIndex() {
       <div className="mb-4">
         {config.researchConnector === "indiankanoon" && config.indianKanoonToken
           ? <Notice tone="navy" title="Indian Kanoon connector is configured (experimental)">Judgments are retrieved from Indian Kanoon. Treat every result as unreviewed until you have read it.</Notice>
+          : config.researchConnector === "opendata" && config.databaseUrl
+          ? <Notice tone="navy" title="Real judgments: eCourts open data (keyword search)">Judgments come from {OPEN_DATA_ATTRIBUTION} {config.anthropicKey ? "Claude analyses the stored headnotes or opening lines only." : "Without an AI key they are matched by keywords only and not analysed, so read each one before relying on it."} New reports use this source; reports made earlier keep their original sources.</Notice>
           : <Notice tone="demo" title="Live legal research is not connected">Judgments come from a small corpus of FICTIONAL demo records so you can see how reports work. They are not real law and must never be cited. {config.anthropicKey ? "Issue analysis uses Claude." : "Issue analysis uses fixed demo rules (no AI key)."}</Notice>}
       </div>
       <div className="grid gap-4 lg:grid-cols-3">
@@ -25,7 +28,7 @@ export default async function ResearchIndex() {
             const c = caseOf(r.caseId);
             return (
               <Link key={r.id} href={`/research/${r.id}`} className="card block p-4 hover:border-navy-700/40">
-                <div className="flex flex-wrap items-center gap-2"><span className="font-medium">{c?.number}</span>{c?.isDemo && <DemoBadge />}<Badge tone={v.status === "reviewed" ? "ok" : "warn"}>{v.status === "reviewed" ? "Reviewed" : "Needs review"}</Badge>{v.mode === "demo" && <Badge tone="demo">Fictional sources</Badge>}<span className="text-xs text-muted">v{v.version} · {new Date(v.createdAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</span></div>
+                <div className="flex flex-wrap items-center gap-2"><span className="font-medium">{c?.number}</span>{c?.isDemo && <DemoBadge />}<Badge tone={v.status === "reviewed" ? "ok" : "warn"}>{v.status === "reviewed" ? "Reviewed" : "Needs review"}</Badge>{v.mode === "demo" && <Badge tone="demo">Fictional sources</Badge>}{v.mode === "rules" && <Badge tone="navy">Real judgments</Badge>}<span className="text-xs text-muted">v{v.version} · {new Date(v.createdAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</span></div>
                 <div className="mt-1 text-sm">{r.title}</div>
                 <div className="mt-1 line-clamp-2 text-sm text-muted">{v.summary}</div>
               </Link>

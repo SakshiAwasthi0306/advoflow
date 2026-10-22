@@ -240,7 +240,7 @@ export interface Authority {
   passages: SourcePassage[];
   relevance: string;
   distinctions: string;
-  stance: "supports" | "limits" | "contradicts";
+  stance: "supports" | "limits" | "contradicts" | "unclassified"; // unclassified: found by search, not analysed
   bindingness: "binding" | "persuasive" | "unknown";
   treatment: string | null;
   url: string | null;
@@ -308,7 +308,7 @@ export interface ResearchVersion {
   version: number;
   createdAt: ISODateTime;
   createdBy: string;
-  mode: "demo" | "live" | "partial";
+  mode: "demo" | "live" | "partial" | "rules"; // rules: rule-based issues + a real (non-fictional) source, no AI
   pipeline: string; // e.g. "demo-rules/demo-corpus" or "anthropic:<model>/indiankanoon"
   question: string;
   orderIds: string[];

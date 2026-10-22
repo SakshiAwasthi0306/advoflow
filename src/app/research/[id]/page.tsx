@@ -5,6 +5,7 @@ import { pageData } from "@/lib/server";
 import { formatDate } from "@/lib/dates";
 import { currentHearing } from "@/lib/services/orders";
 import type { Authority } from "@/lib/types";
+import { OPEN_DATA_ATTRIBUTION } from "@/lib/research/attribution";
 import { Badge, Card, DemoBadge, Notice, PageHeader } from "@/components/ui";
 import { VerificationBadge } from "@/components/status";
 import { ActionButton, CopyButton } from "@/components/client";
@@ -13,7 +14,8 @@ import { ResearchStart } from "@/components/widgets";
 
 export const metadata = { title: "Research report" };
 
-const STANCE: Record<Authority["stance"], { label: string; tone: "ok" | "warn" | "danger" }> = {
+const STANCE: Record<Authority["stance"], { label: string; tone: "ok" | "warn" | "danger" | "neutral" }> = {
+  unclassified: { label: "Not analysed", tone: "neutral" },
   supports: { label: "Supports", tone: "ok" },
   limits: { label: "Limits", tone: "warn" },
   contradicts: { label: "Contradicts", tone: "danger" },
@@ -32,7 +34,8 @@ export default async function Report({ params, searchParams }: { params: { id: s
   const provById = new Map(v.provisions.map((p) => [p.id, p]));
   const refName = (id: string) => authById.get(id)?.name ?? (provById.get(id) ? `${provById.get(id)!.legislation}, ${provById.get(id)!.section}` : null);
   const hearing = currentHearing(ws, c.id);
-  const contrary = v.authorities.filter((a) => a.stance !== "supports");
+  const contrary = v.authorities.filter((a) => a.stance === "limits" || a.stance === "contradicts");
+  const openData = v.authorities.some((a) => a.connector === "ecourts-opendata");
   const allOrders = ws.orders.filter((o) => o.caseId === c.id);
   const newerOrders = allOrders.filter((o) => !v.orderIds.includes(o.id) && o.approvedAt > v.createdAt);
   const section = (n: number, t: string) => <span className="flex items-center gap-2"><span className="grid h-6 w-6 place-items-center rounded-full bg-navy-50 text-xs font-semibold text-navy-800">{n}</span>{t}</span>;
@@ -44,7 +47,7 @@ export default async function Report({ params, searchParams }: { params: { id: s
         title={report.title}
         subtitle={<span className="flex flex-wrap items-center gap-2">
           <Badge tone={v.status === "reviewed" ? "ok" : "warn"}>{v.status === "reviewed" ? "Reviewed by advocate" : "Needs your review"}</Badge>
-          {v.mode === "demo" ? <Badge tone="demo">Demo — fictional sources</Badge> : v.mode === "partial" ? <Badge tone="neutral">AI analysis · no live legal source</Badge> : <Badge tone="navy">Live source</Badge>}
+          {v.mode === "demo" ? <Badge tone="demo">Demo — fictional sources</Badge> : v.mode === "rules" ? <Badge tone="navy">Real judgments · keyword match, not analysed</Badge> : v.mode === "partial" ? <Badge tone="neutral">AI analysis · no live legal source</Badge> : <Badge tone="navy">Live source</Badge>}
           <span>Generated {new Date(v.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" })} · pipeline {v.pipeline}</span>
         </span>}
         actions={<>
@@ -111,7 +114,8 @@ export default async function Report({ params, searchParams }: { params: { id: s
             ) : <p className="text-sm text-muted">No provisions identified.</p>}
           </Card>
 
-          <Card title={section(4, "Relevant judgments")}>
+          <Card title={section(4, v.mode === "rules" ? "Judgments to read" : "Relevant judgments")}>
+            {openData && <p className="mb-3 text-xs text-muted">Real judgments from {OPEN_DATA_ATTRIBUTION} {v.mode === "rules" ? "They were matched by keywords only; a match does not mean the judgment decides your point." : ""}</p>}
             {v.authorities.length ? (
               <ul className="space-y-3">
                 {v.authorities.map((a) => {
@@ -131,7 +135,7 @@ export default async function Report({ params, searchParams }: { params: { id: s
                       {a.issue && <p className="mt-2"><span className="font-medium">Issue: </span>{a.issue}</p>}
                       {a.principle && <p className="mt-1"><span className="font-medium">Principle: </span>{a.principle}</p>}
                       {a.passages.map((p) => <blockquote key={p.id} className="mt-2 border-l-2 border-navy-700/40 pl-3 text-[13px] text-ink/90">“{p.text}”{p.locator && <span className="ml-1 text-xs text-muted">— {p.locator}</span>}</blockquote>)}
-                      {a.relevance && <p className="mt-2 text-muted"><span className="font-medium text-ink">Why it may help: </span>{a.relevance}</p>}
+                      {a.relevance && <p className="mt-2 text-muted"><span className="font-medium text-ink">{a.stance === "unclassified" ? "Why it is listed: " : "Why it may help: "}</span>{a.relevance}</p>}
                       {a.distinctions && <p className="mt-1 text-muted"><span className="font-medium text-ink">Distinctions: </span>{a.distinctions}</p>}
                       <p className="mt-1 text-xs text-muted">Subsequent treatment: {a.treatment ?? "not checked (no validity-checking source connected)"}</p>
                       <div className="no-print mt-2 flex flex-wrap gap-2">

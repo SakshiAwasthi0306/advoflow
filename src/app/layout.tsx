@@ -33,7 +33,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const notes: string[] = [];
   if (config.authMode === "demo") notes.push(config.databaseUrl ? "Open demo: no login, anyone with the link sees and can change this data" : "Demo mode: no login, data stored on this machine only");
   if (!config.anthropicKey) notes.push("AI not connected (rule-based demo extraction)");
-  if (config.researchConnector !== "indiankanoon") notes.push("Legal research uses fictional demo sources");
+  if (config.researchConnector === "demo") notes.push("Legal research uses fictional demo sources");
+  if (config.researchConnector === "opendata") notes.push("Legal research: real judgments from eCourts open data, keyword search");
   return (
     <html lang="en">
       <body>

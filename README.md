@@ -23,7 +23,7 @@ AdvoFlow grew out of the single-page *Case Diary* prototype. It keeps that proto
 | Scans and photos (OCR) | Not available — use paste or manual entry | Claude vision OCR (English and Kannada). Accuracy on real Kannada orders has **not** been evaluated |
 | Database | JSON files in `.data/` on the server (demo only, not secure) | PostgreSQL with relational schema and transactional saves |
 | Sign-in | Single demo office, no login | Email + password (scrypt), HMAC-signed session cookie, roles |
-| Legal research sources | Small corpus of **fictional** judgments | Indian Kanoon API connector — **experimental, not tested end-to-end** |
+| Legal research sources | Small corpus of **fictional** judgments | **Real judgments from eCourts open data** (Supreme Court headnotes + Karnataka HC, keyword search, loaded into PostgreSQL), or the Indian Kanoon API connector — **experimental, not tested end-to-end** |
 | Statutory provisions | Fixed demo table of real CPC / Limitation Act references, marked *unverified* | AI-suggested, marked *unverified* (no official-text connector yet) |
 | Calendar | CSV export (Google Calendar import format) | Same — **no live calendar sync** |
 | Client messages | Drafts + copy + WhatsApp click-to-chat link | Same — **nothing is ever sent automatically; opening WhatsApp is not delivery** |
@@ -81,7 +81,7 @@ Copy `.env.example` to `.env.local` and set only what you need:
 | `DATABASE_URL_UNPOOLED` | Direct (non-pooled) Postgres URL, used by `npm run db:migrate` when set (Neon) |
 | `ANTHROPIC_API_KEY` | Enables AI extraction, OCR and research analysis |
 | `ANTHROPIC_MODEL` | Claude model id (default `claude-sonnet-4-5`) |
-| `RESEARCH_CONNECTOR` | `demo` (fictional corpus), `indiankanoon`, or `none` |
+| `RESEARCH_CONNECTOR` | `demo` (fictional corpus), `opendata` (real eCourts judgments in PostgreSQL), `indiankanoon`, or `none` |
 | `INDIAN_KANOON_API_TOKEN` | Token for the Indian Kanoon connector |
 
 API keys are read only on the server (`src/lib/config.ts` is `server-only`) and are never sent to the browser. An automated test fails if any client component references them.
@@ -137,6 +137,25 @@ The research pipeline (`src/lib/research/pipeline.ts`):
 Every report shows its mode (demo / AI without live source / live), the orders it used, the queries run, result counts, errors and limitations. Subsequent-treatment (good-law) checking is **not** implemented and the UI says so.
 
 To add a licensed source, implement the interface and return it from `getConnector()`.
+
+#### eCourts open data (real judgments, free)
+
+`RESEARCH_CONNECTOR=opendata` searches real judgments stored in the `legal_judgments` table (`db/migrations/002_legal_judgments.sql`). They come from the public datasets [indian-supreme-court-judgments](https://registry.opendata.aws/indian-supreme-court-judgments/) and [indian-high-court-judgments](https://registry.opendata.aws/indian-high-court-judgments/), published by Dattam Labs from eCourts under **CC-BY-4.0** (attribution is shown on every report that uses them).
+
+| Court | What is stored and searched | Default range |
+|---|---|---|
+| Supreme Court of India | Parties, SCR and neutral citation, author judge, date, and the **Issue for Consideration + headnotes** read from the first pages of each reported judgment PDF | 2010 → current year |
+| High Court of Karnataka | Parties, neutral citation, CNR, seat and judges, date, outcome, case type and the **opening lines** from eCourts metadata (the PDF is linked, not read) | 2026 (decided matters; non-prosecution, dropped and abated matters left out) |
+
+Load or extend it (Python 3.9+, runs from a laptop; re-running is safe):
+
+```bash
+python3 -m venv .venv-judgments && .venv-judgments/bin/pip install -r scripts/judgments/requirements.txt
+npm run db:migrate
+DATABASE_URL_UNPOOLED=postgres://... .venv-judgments/bin/python scripts/judgments/load_judgments.py --sc-from 2010 --khc-from 2026
+```
+
+Search is PostgreSQL full-text search: a record is returned only when at least two terms of the query appear in it. Without an AI key, reports list these judgments as **"Not analysed"** with the matched terms; no stance, principle or argument is generated for them. With an AI key, Claude analyses the stored headnotes/opening lines only. Mind your database plan's storage: the default load (13,015 Supreme Court + 54,427 Karnataka HC records) takes about 180 MB.
 
 ---
 
