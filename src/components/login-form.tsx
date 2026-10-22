@@ -34,7 +34,7 @@ export function LoginForm() {
     try {
       const r = await api<{ status: string; delivery: { to: string; mode: Challenge["mode"] }; expiresInSeconds: number }>("/api/auth/login", "POST", { email: f.get("email"), password: f.get("password") });
       if (r.status === "signed_in") { // password-only deployment
-        router.replace("/");
+        router.replace("/profile"); // the advocate's profile is the first screen after sign-in
         router.refresh();
         return;
       }
@@ -53,7 +53,7 @@ export function LoginForm() {
     setBusy(true); setErr(null); setInfo(null);
     try {
       await api("/api/auth/verify", "POST", { code });
-      router.replace("/");
+      router.replace("/profile"); // the advocate's profile is the first screen after sign-in
       router.refresh();
     } catch (ex) {
       const msg = (ex as Error).message;
