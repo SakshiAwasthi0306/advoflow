@@ -124,12 +124,19 @@ export function judgmentPassages(text: string, kind: JudgmentRow["text_kind"]): 
   return out;
 }
 
+/** The dataset's judge field is the author for recent SCR volumes but the whole bench for older ones. */
+function benchLabel(bench: string | null): string | null {
+  if (!bench?.startsWith("Judgment by ")) return bench;
+  const names = bench.slice("Judgment by ".length);
+  return names.includes(",") ? `Bench: ${names}` : bench;
+}
+
 export function rowToDoc(r: JudgmentRow): RetrievedDoc {
   const date = r.decision_date ? String(r.decision_date).slice(0, 10) : null;
   return {
     sourceId: r.id, connector: "ecourts-opendata", title: r.title,
     citation: [r.citation, r.neutral_citation].filter(Boolean).join("; ") || null,
-    court: r.court, decisionDate: date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null, bench: r.bench, url: r.pdf_url,
+    court: r.court, decisionDate: date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null, bench: benchLabel(r.bench), url: r.pdf_url,
     passages: judgmentPassages(r.text, r.text_kind), fictional: false, matchedTerms: r.matched,
   };
 }

@@ -33,6 +33,11 @@ describe("eCourts open-data connector", () => {
     expect(d.passages[1].text.startsWith("Penal Code")).toBe(true);
   });
 
+  it("labels several judges as the bench, not as the author", () => {
+    expect(rowToDoc({ ...sc, bench: "Judgment by S.A. BOBDE, B.R. GAVAI" }).bench).toBe("Bench: S.A. BOBDE, B.R. GAVAI");
+    expect(rowToDoc(sc).bench).toBe("Judgment by BELA M. TRIVEDI");
+  });
+
   it("labels Karnataka High Court text as opening lines only", () => {
     const d = rowToDoc(khc);
     expect(d.citation).toBe("2024:KHC-K:6372");

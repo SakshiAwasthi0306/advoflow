@@ -118,7 +118,7 @@ def load_sc(conn, year_from, year_to, workers, refresh=False):
         text = sc_headnotes(fetch(pdf_url))
         if len(text) < 80:
             raise ValueError("no headnote text found")
-        return ("sc:" + path, "sc", "Supreme Court of India", f"Judgment by {clean(judge)}" if clean(judge) else None,
+        return ("sc:" + path, "sc", "Supreme Court of India", (("Bench: " if "," in clean(judge) else "Judgment by ") + clean(judge)) if clean(judge) else None,
                 clean(title).replace(" versus ", " v. "), clean(citation) or None, clean(neutral) or None,
                 clean(cnr) or None, None, ddmmyyyy(ddate), clean(disposal) or None, text, "headnotes", pdf_url, SC_BUCKET)
 
