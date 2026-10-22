@@ -1,14 +1,11 @@
 // Database-level rules of the Step 2 schema (prisma/schema.prisma), checked against real PostgreSQL.
 // Runs only when PG_TEST_URL points at a THROWAWAY database: it applies the Prisma migrations there, e.g.
 //   PG_TEST_URL=postgres://postgres:postgres@localhost:5432/advoflow_test npm test
-import { execSync } from "node:child_process";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
 
 const url = process.env.PG_TEST_URL;
-// The CLI keeps its _prisma_migrations table in "app" here, so other test files that reset "public" cannot interfere.
-const cliUrl = url ? `${url}${url.includes("?") ? "&" : "?"}schema=app` : "";
 const run = Math.random().toString(36).slice(2, 8);
 
 describe.skipIf(!url)("Prisma schema (app)", () => {
@@ -17,7 +14,6 @@ describe.skipIf(!url)("Prisma schema (app)", () => {
   const B = `office_b_${run}`;
 
   beforeAll(async () => {
-    execSync("npx prisma migrate deploy", { env: { ...process.env, DATABASE_URL: cliUrl, DATABASE_URL_UNPOOLED: cliUrl }, stdio: "pipe" });
     db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url! }) });
     await db.office.createMany({ data: [{ id: A, name: "Office A" }, { id: B, name: "Office B" }] });
   }, 120_000);

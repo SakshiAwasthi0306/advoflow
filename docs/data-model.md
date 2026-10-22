@@ -1,6 +1,6 @@
 # Step 2 — Requirements and data model (proposal, for confirmation)
 
-Status: **implemented as a schema and migrations, tested; not yet applied to production.**
+Status: **in use.** The app reads and writes these tables through `src/lib/store/prisma-store.ts` (Step 3).
 Schema: `prisma/schema.prisma` · migrations: `prisma/migrations/` · rules tested by `tests/schema.test.ts`.
 
 Confirmed decisions (22 Oct 2026): many clients per case with one primary · courts as a seeded reference list plus free text · research versions stored as a fixed JSON snapshot with cited judgments in their own table · production starts fresh on the new schema and the demo is re-seeded (it held only fictional demo records).
@@ -82,8 +82,9 @@ Conventions: string ids (`cuid`), `createdAt`/`updatedAt` on every table, calend
 
 Migrations: `20261022000000_init` (21 tables, 21 enums, indexes) and `20261022000100_seed_courts` (35 courts).
 
-## 4. Switch-over plan (next step, not done yet)
+## 4. Switch-over (Step 3)
 
-1. Port the services in `src/lib/services/*` from the whole-office aggregate to Prisma repositories, keeping their tests.
-2. On a Neon branch: `prisma migrate deploy`, seed the demo, run the full test suite and the browser walkthrough.
-3. On production: `prisma migrate deploy`, re-seed the demo, deploy the ported app, verify `/api/health/ready`, then drop the old `public` tables (keeping `legal_judgments`, `schema_migrations`).
+1. The app's storage moved to `PrismaStore` (same service interface, so business rules and their tests are unchanged); saves write only the rows that changed.
+2. Extra migration `20261022010000_app_storage_fields` (office version for optimistic locking, research report link on tasks, bookmarks, authority material facts / treatment, user ids for assignee and confirmer) and `20261022010100_legal_judgments` (shared judgments table, created only if missing).
+3. Rehearsed on a Neon copy of production: migrations, demo load, every page, every write path, demo removal and reload.
+4. Production: migrations applied by the deploy, demo re-seeded; the pre-Step-3 tables in `public` are dropped by `20261022020000_drop_legacy_tables` once the new app is verified live.

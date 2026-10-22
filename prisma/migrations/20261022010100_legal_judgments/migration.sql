@@ -1,6 +1,7 @@
--- Real judgments from the public eCourts open datasets (Dattam Labs, CC-BY-4.0), loaded by scripts/judgments/load_judgments.py.
--- Shared reference data: not office-scoped, read-only for the app.
-CREATE TABLE legal_judgments (
+-- Shared reference table of real judgments (public schema, outside the Prisma models: it has a generated
+-- full-text column Prisma cannot manage). Loaded by scripts/judgments/load_judgments.py. Created only if missing,
+-- so databases that already have it from the old db/migrations/002_legal_judgments.sql are left untouched.
+CREATE TABLE IF NOT EXISTS public.legal_judgments (
   id               TEXT PRIMARY KEY,           -- "sc:<path>" or "khc:<pdf file stem>"
   source           TEXT NOT NULL CHECK (source IN ('sc', 'khc')),
   court            TEXT NOT NULL,
@@ -22,5 +23,5 @@ CREATE TABLE legal_judgments (
                      setweight(to_tsvector('english', coalesce(title, '') || ' ' || coalesce(case_type, '')), 'B')
                    ) STORED
 );
-CREATE INDEX legal_judgments_search_idx ON legal_judgments USING GIN (search);
-CREATE INDEX legal_judgments_source_date_idx ON legal_judgments (source, decision_date DESC);
+CREATE INDEX IF NOT EXISTS legal_judgments_search_idx ON public.legal_judgments USING GIN (search);
+CREATE INDEX IF NOT EXISTS legal_judgments_source_date_idx ON public.legal_judgments (source, decision_date DESC);

@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { hashPassword } from "../src/lib/auth";
 import { FileStore } from "../src/lib/store/file-store";
-import { PostgresStore } from "../src/lib/store/postgres-store";
+import { PrismaStore } from "../src/lib/store/prisma-store";
 import { emptyWorkspace } from "../src/lib/services/workspace";
 import type { Role } from "../src/lib/types";
 
@@ -19,7 +19,7 @@ async function main() {
   const role = (arg("role") ?? "advocate") as Role;
   if (!email || !name || !password || password.length < 10) throw new Error("Need --email, --name and --password (10+ characters).");
   if (!["owner", "advocate", "clerk", "viewer"].includes(role)) throw new Error("Role must be owner, advocate, clerk or viewer.");
-  const store = process.env.DATABASE_URL ? new PostgresStore(process.env.DATABASE_URL) : new FileStore(path.resolve(process.env.ADVOFLOW_DATA_DIR || ".data"));
+  const store = process.env.DATABASE_URL ? new PrismaStore(process.env.DATABASE_URL) : new FileStore(path.resolve(process.env.ADVOFLOW_DATA_DIR || ".data"));
   let user = await store.findUserByEmail(email);
   if (!user) {
     user = { id: `user_${randomUUID().replace(/-/g, "").slice(0, 16)}`, email, name, passwordHash: hashPassword(password), createdAt: new Date().toISOString() };
@@ -33,6 +33,6 @@ async function main() {
   }
   await store.addMembership({ userId: user.id, officeId: office, role });
   console.log(`User ${email} is a ${role} in ${office}.`);
-  if (store instanceof PostgresStore) await store.close();
+  if (store instanceof PrismaStore) await store.close();
 }
 main().catch((e) => { console.error(e.message); process.exit(1); });

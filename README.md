@@ -113,7 +113,7 @@ Copy `.env.example` to `.env.local` and set only what you need. Every variable i
 | `DATABASE_URL` | PostgreSQL URL. Empty = local file store |
 | `DOCUMENT_STORAGE_DIR` | Private folder for uploads (default `.data/uploads`) |
 | `BLOB_READ_WRITE_TOKEN` | Store uploads in a private Vercel Blob store instead of the local folder |
-| `DATABASE_URL_UNPOOLED` | Direct (non-pooled) Postgres URL, used by `npm run db:migrate` when set (Neon) |
+| `DATABASE_URL_UNPOOLED` | Direct (non-pooled) Postgres URL, used by `npm run db:migrate` (Prisma Migrate) when set (Neon) |
 | `ANTHROPIC_API_KEY` | Enables AI extraction, OCR and research analysis |
 | `ANTHROPIC_MODEL` | Claude model id (default `claude-sonnet-4-5`) |
 | `RESEARCH_CONNECTOR` | `demo` (fictional corpus), `opendata` (real eCourts judgments in PostgreSQL), `indiankanoon`, or `none` |
@@ -129,19 +129,20 @@ API keys are read only on the server (`src/lib/config.ts` is `server-only`) and 
 DATABASE_URL=postgresql://USER:PASSWORD@HOST/DB?sslmode=require            # pooled, used by the app
 DATABASE_URL_UNPOOLED=postgresql://USER:PASSWORD@HOST/DB?sslmode=require    # direct, used for migrations (optional)
 
-npm run db:migrate                # tables the CURRENT app uses (db/migrations/*.sql, schema "public")
-npm run prisma:migrate:deploy     # the Step 2 data model (prisma/migrations, schema "app") — see below before running on production
-npm run prisma:migrate:status     # which Prisma migrations are applied
+npm run db:migrate                # prisma migrate deploy: applies prisma/migrations (creates schema "app" and public.legal_judgments)
+npm run prisma:migrate:status     # which migrations are applied
 curl -s localhost:3000/api/health/ready   # confirms the app reaches the database through Prisma
 ```
 
-**Where the data model stands** — in plain terms:
+**How data is stored** — in plain terms:
 
-- **The new data model is designed and tested** (Step 2): `prisma/schema.prisma`, explained in [docs/data-model.md](docs/data-model.md). Its tables live in a separate Postgres schema called `app`, so they can sit in the same database as the current tables without clashing (both have tables called `cases`, `tasks`, …).
-- **The running app still uses the older tables** in schema `public`, created by `db/migrations/*.sql` and written by `src/lib/store/postgres-store.ts`. The next step ports the app's data access to Prisma; only then is production switched over (apply the Prisma migrations, re-seed the demo, drop the old tables). Until that step, **do not run `prisma:migrate:deploy` against the live database** — nothing would break, but the empty `app` tables would just sit there unused.
-- **The shared judgments table** (`public.legal_judgments`) is not part of the Prisma schema: it is reference data loaded by `scripts/judgments/` with a full-text-search column Prisma cannot manage. Research authorities point at it by id.
-- **Prisma talks to Postgres through `node-postgres`** (the Prisma `pg` adapter), the driver the rest of the app uses. The generated client (`src/generated/prisma/`) is not committed; `npm install` regenerates it.
-- Never run `prisma db push` or `prisma migrate reset` against a database with real data. Make schema changes with `npx prisma migrate dev --name <change>` against a local or Neon **branch** database, review the generated SQL, then commit it.
+- **All app data lives in the normalised tables of Postgres schema `app`**, defined in `prisma/schema.prisma` (explained in [docs/data-model.md](docs/data-model.md)) and created by Prisma Migrate. The app reads and writes them through Prisma (`src/lib/store/prisma-store.ts`).
+- **The app's business logic still works on one office at a time** (load the office → change it → save). The Prisma store assembles that office from the tables and, on save, writes **only the rows that changed**, in one transaction, after a version check (two people saving at once cannot overwrite each other; the second save is re-applied to fresh data).
+- **The database enforces the important rules itself**: records cannot point at another office's records, one live case per case number, one order per document, no duplicate tasks, one primary client per case, hearing history kept.
+- **Shared judgments** (`public.legal_judgments`) are reference data outside the Prisma models (full-text column), created by a migration and filled by `scripts/judgments/`.
+- Prisma's own history table lives in `app` (`prisma.config.ts` adds `schema=app` for the CLI). Prisma talks to Postgres through `node-postgres` (the Prisma `pg` adapter); the generated client (`src/generated/prisma/`) is not committed and `npm install` regenerates it.
+- Schema changes: edit `prisma/schema.prisma`, run `npx prisma migrate dev --name <change>` against a local database or a Neon **branch**, review the SQL, commit it. Never run `prisma db push` or `prisma migrate reset` against a database with real data.
+- Without `DATABASE_URL` the app uses the local demo file store in `.data/` instead (not for real data).
 ### Password mode and users
 
 ```bash
@@ -189,7 +190,7 @@ To add a licensed source, implement the interface and return it from `getConnect
 
 #### eCourts open data (real judgments, free)
 
-`RESEARCH_CONNECTOR=opendata` searches real judgments stored in the `legal_judgments` table (`db/migrations/002_legal_judgments.sql`). They come from the public datasets [indian-supreme-court-judgments](https://registry.opendata.aws/indian-supreme-court-judgments/) and [indian-high-court-judgments](https://registry.opendata.aws/indian-high-court-judgments/), published by Dattam Labs from eCourts under **CC-BY-4.0** (attribution is shown on every report that uses them).
+`RESEARCH_CONNECTOR=opendata` searches real judgments stored in the `legal_judgments` table (created by `prisma/migrations/20261022010100_legal_judgments`). They come from the public datasets [indian-supreme-court-judgments](https://registry.opendata.aws/indian-supreme-court-judgments/) and [indian-high-court-judgments](https://registry.opendata.aws/indian-high-court-judgments/), published by Dattam Labs from eCourts under **CC-BY-4.0** (attribution is shown on every report that uses them).
 
 | Court | What is stored and searched | Default range |
 |---|---|---|
@@ -223,7 +224,7 @@ Services (src/lib/services/*) ── pure business logic on one office "Workspac
   ▼
 WorkspaceStore (src/lib/store/*)
   ├─ FileStore     (.data/, demo/dev; atomic writes, version check)
-  └─ PostgresStore (relational tables, one transaction per save, optimistic locking)
+  └─ PrismaStore   (PostgreSQL schema "app" via Prisma; changed rows only, one transaction per save, optimistic locking)
 
 Extraction: text.ts (sniff bytes → PDF text / OCR) → demo-extractor.ts | ai-extractor.ts
 Research:   pipeline.ts → connectors.ts (demo corpus | Indian Kanoon) → services/research.ts
@@ -233,7 +234,7 @@ Research:   pipeline.ts → connectors.ts (demo corpus | Indian Kanoon) → serv
 
 **Idempotency.** Each upload is keyed by the SHA-256 of its content; re-uploading returns the existing review item. Approving twice returns the first result. Approved tasks carry a de-duplication key (document + task), backed by a unique index in PostgreSQL. A document can become only one approved order (unique index).
 
-**Data model** (`src/lib/types.ts`, `db/migrations/001_init.sql`): offices, users, office memberships, clients, cases, documents, processing jobs, court orders, hearings, date changes, tasks, client updates, research reports, research report versions, legal issues, statutory provisions, judicial authorities, source passages, saved authorities, research notes, audit logs. The model keeps these separate:
+**Data model** (`src/lib/types.ts` in the app, `prisma/schema.prisma` in the database — see [docs/data-model.md](docs/data-model.md)): offices, users, office memberships, clients, cases, documents, processing jobs, court orders, hearings, date changes, tasks, client updates, research reports, research report versions, legal issues, statutory provisions, judicial authorities, source passages, saved authorities, research notes, audit logs. The model keeps these separate:
 
 - original document ↔ AI extraction (kept on the job and as `extractionSnapshot`) ↔ advocate-approved order (only ticked fields)
 - proposed hearing (`awaiting_verification`) ↔ confirmed ↔ superseded / held / cancelled (history is never deleted)
@@ -255,8 +256,8 @@ src/lib/db/prisma.ts   Prisma Client (pg adapter); prisma/schema.prisma, prisma.
 src/lib/services/      business logic
 src/lib/extraction/    text extraction, demo and AI extractors
 src/lib/research/      connectors, demo corpus (fictional), demo rules, pipeline
-src/lib/store/         FileStore, PostgresStore
-db/migrations/         SQL schema
+src/lib/store/         FileStore, PrismaStore
+prisma/                Prisma schema and migrations
 scripts/               migrate, create-user
 tests/                 unit + PostgreSQL tests; tests/e2e browser walkthrough
 ```
@@ -269,8 +270,7 @@ tests/                 unit + PostgreSQL tests; tests/e2e browser walkthrough
 npm run typecheck
 npm run lint
 npm test                    # unit and integration tests (vitest), incl. env validation, logging, error format and health checks
-PG_TEST_URL=postgres://postgres@localhost:5432/advoflow_test npm test   # also applies the Prisma migrations and checks the schema rules (office isolation, unique case numbers, one order per document, …)
-PG_TEST_URL=postgres://postgres@localhost:5432/advoflow_test npm test   # also runs PostgreSQL store tests (uses an EMPTY throwaway DB)
+PG_TEST_URL=postgres://postgres@localhost:5432/advoflow_test npm test   # also applies the Prisma migrations to that THROWAWAY database, checks the schema rules and runs the Prisma store tests
 ```
 
 The tests cover: Indian date parsing; case-number normalisation; extraction of stated fields with source passages; **missing and relative dates are never invented**; a party's request is not treated as a court direction; approval updates case, hearing, tasks and drafts together; **idempotent re-upload and re-approval**; **rejecting leaves records unchanged**; **ambiguous case matches are not merged**; duplicate case blocking; **date changes keep history, flag open tasks and never touch completed ones**; unconfirmed hearings stay out of confirmed calendar entries; role checks; demo data is labelled fictional; research reports identify their source orders; **research versions are preserved**; **research tasks need confirmation**; **office isolation** (file store and PostgreSQL); concurrent writes; PostgreSQL rollback on stale writes and the duplicate-case constraint; signed sessions and password hashing; WhatsApp link encoding; **no client component references server secrets**.
@@ -323,7 +323,7 @@ No compliance certification is claimed.
 
 - `DATABASE_URL` = Neon **pooled** connection string; `DATABASE_URL_UNPOOLED` = the **direct** one (used for migrations). `neon init` / `neon deploy` write both to `.env.local`; add them to the Vercel project as sensitive variables.
 - Create a **private** Blob store and connect it to the project; that sets `BLOB_READ_WRITE_TOKEN`, and uploads go to Blob (`BlobDocumentStorage` in `src/lib/storage.ts`).
-- Build command: `npm run db:migrate && next build`, so each deploy applies pending migrations (and fails without a database).
+- Build command: `npm run db:migrate && next build`: each deploy first applies pending Prisma migrations (and fails without a database), so a deploy never runs against an older schema.
 - `AUTH_MODE=demo` gives an open demo; use `AUTH_MODE=password` with `AUTH_SECRET` for anything real.
 - The pg pool is registered with `attachDatabasePool` from `@vercel/functions` so idle connections close cleanly on Fluid compute.
 - Keep the Vercel function region next to the database (the demo uses `sin1` with Neon in `ap-southeast-1`).

@@ -202,6 +202,7 @@ model Office {
   id         String   @id @default(cuid())
   name       String
   demoLoaded Boolean  @default(false)
+  version    Int      @default(0) // bumped on every save; a stale save is rejected (optimistic locking)
   createdAt  DateTime @default(now()) @db.Timestamptz(6)
   updatedAt  DateTime @updatedAt @db.Timestamptz(6)
 
@@ -251,9 +252,6 @@ model Membership {
 
   office Office @relation(fields: [officeId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  assignedTasks     Task[]
-  confirmedHearings Hearing[]
 
   @@unique([officeId, userId])
   @@unique([officeId, id]) // lets other tables reference "a member of THIS office"
@@ -394,7 +392,7 @@ model Document {
   textExtract  String?
   textSource   TextSource   @default(NONE)
   isDemo       Boolean      @default(false)
-  uploadedById String? // Membership id
+  uploadedById String? // user id
   createdAt    DateTime     @default(now()) @db.Timestamptz(6)
 
   office Office          @relation(fields: [officeId], references: [id], onDelete: Cascade)
@@ -488,7 +486,7 @@ model Hearing {
   status         HearingStatus
   sourceOrderId  String?
   supersededById String?
-  confirmedById  String?
+  confirmedById  String? // user id
   confirmedAt    DateTime?     @db.Timestamptz(6)
   createdAt      DateTime      @default(now()) @db.Timestamptz(6)
 
@@ -497,7 +495,6 @@ model Hearing {
   sourceOrder  CourtOrder? @relation("HearingSourceOrder", fields: [officeId, sourceOrderId], references: [officeId, id], onDelete: NoAction)
   supersededBy Hearing?    @relation("HearingSupersededBy", fields: [officeId, supersededById], references: [officeId, id], onDelete: NoAction)
   supersedes   Hearing[]   @relation("HearingSupersededBy")
-  confirmedBy  Membership? @relation(fields: [officeId, confirmedById], references: [officeId, id], onDelete: NoAction)
 
   @@unique([officeId, id])
   @@index([officeId, date])
@@ -525,31 +522,30 @@ model HearingDateChange {
 }
 
 model Task {
-  id              String       @id @default(cuid())
-  officeId        String
-  caseId          String
-  title           String
-  description     String       @default("")
-  dueDate         DateTime?    @db.Date
-  priority        TaskPriority @default(NORMAL)
-  status          TaskStatus   @default(OPEN)
-  source          TaskSource   @default(MANUAL)
-  sourceOrderId   String?
-  sourceVersionId String?
-  dedupeKey       String? // stops retries from creating the same task twice
-  assigneeId      String?
-  rescheduleFrom  DateTime?    @db.Date // set when the hearing this task was due on moved; the advocate decides
-  rescheduleTo    DateTime?    @db.Date
-  createdById     String?
-  createdAt       DateTime     @default(now()) @db.Timestamptz(6)
-  updatedAt       DateTime     @updatedAt @db.Timestamptz(6)
-  completedAt     DateTime?    @db.Timestamptz(6)
+  id             String       @id @default(cuid())
+  officeId       String
+  caseId         String
+  title          String
+  description    String       @default("")
+  dueDate        DateTime?    @db.Date
+  priority       TaskPriority @default(NORMAL)
+  status         TaskStatus   @default(OPEN)
+  source         TaskSource   @default(MANUAL)
+  sourceOrderId  String?
+  sourceReportId String?
+  dedupeKey      String? // stops retries from creating the same task twice
+  assigneeId     String? // user id
+  rescheduleFrom DateTime?    @db.Date // set when the hearing this task was due on moved; the advocate decides
+  rescheduleTo   DateTime?    @db.Date
+  createdById    String?
+  createdAt      DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @db.Timestamptz(6)
+  completedAt    DateTime?    @db.Timestamptz(6)
 
-  office        Office           @relation(fields: [officeId], references: [id], onDelete: Cascade)
-  case          Case             @relation(fields: [officeId, caseId], references: [officeId, id], onDelete: Cascade)
-  sourceOrder   CourtOrder?      @relation(fields: [officeId, sourceOrderId], references: [officeId, id], onDelete: NoAction)
-  sourceVersion ResearchVersion? @relation(fields: [officeId, sourceVersionId], references: [officeId, id], onDelete: NoAction)
-  assignee      Membership?      @relation(fields: [officeId, assigneeId], references: [officeId, id], onDelete: NoAction)
+  office       Office          @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  case         Case            @relation(fields: [officeId, caseId], references: [officeId, id], onDelete: Cascade)
+  sourceOrder  CourtOrder?     @relation(fields: [officeId, sourceOrderId], references: [officeId, id], onDelete: NoAction)
+  sourceReport ResearchReport? @relation(fields: [officeId, sourceReportId], references: [officeId, id], onDelete: NoAction)
 
   @@unique([officeId, caseId, dedupeKey], map: "task_dedupe_uniq", where: raw("\"dedupeKey\" IS NOT NULL"))
   @@index([officeId, status, dueDate])
@@ -595,6 +591,7 @@ model ResearchReport {
   office   Office            @relation(fields: [officeId], references: [id], onDelete: Cascade)
   case     Case              @relation(fields: [officeId, caseId], references: [officeId, id], onDelete: Cascade)
   versions ResearchVersion[]
+  tasks    Task[]
 
   @@unique([officeId, id])
   @@index([officeId, caseId])
@@ -604,35 +601,35 @@ model ResearchReport {
 /// One run of the research pipeline. The analysis is a fixed snapshot (JSON) and is never edited after
 /// creation; only `status` and notes change. A rerun creates a new version.
 model ResearchVersion {
-  id               String       @id @default(cuid())
-  officeId         String
-  reportId         String
-  version          Int
-  question         String
-  actingFor        PartySide?
-  mode             ResearchMode
-  pipeline         String
-  status           ReviewStatus @default(NEEDS_REVIEW)
-  summary          String
-  orderIds         String[]     @default([])
-  documentIds      String[]     @default([])
-  issues           Json         @default("[]")
-  provisions       Json         @default("[]")
-  arguments        Json         @default("[]")
-  counterarguments Json         @default("[]")
-  missingFacts     Json         @default("[]")
-  nextSteps        Json         @default("[]")
-  limitations      Json         @default("[]")
-  sourcesChecked   Json         @default("[]")
-  createdById      String?
-  createdAt        DateTime     @default(now()) @db.Timestamptz(6)
-  reviewedAt       DateTime?    @db.Timestamptz(6)
+  id                     String       @id @default(cuid())
+  officeId               String
+  reportId               String
+  version                Int
+  question               String
+  actingFor              PartySide?
+  mode                   ResearchMode
+  pipeline               String
+  status                 ReviewStatus @default(NEEDS_REVIEW)
+  summary                String
+  orderIds               String[]     @default([])
+  documentIds            String[]     @default([])
+  issues                 Json         @default("[]")
+  provisions             Json         @default("[]")
+  arguments              Json         @default("[]")
+  counterarguments       Json         @default("[]")
+  missingFacts           Json         @default("[]")
+  nextSteps              Json         @default("[]")
+  limitations            Json         @default("[]")
+  sourcesChecked         Json         @default("[]")
+  bookmarkedProvisionIds String[]     @default([])
+  createdById            String?
+  createdAt              DateTime     @default(now()) @db.Timestamptz(6)
+  reviewedAt             DateTime?    @db.Timestamptz(6)
 
   office      Office              @relation(fields: [officeId], references: [id], onDelete: Cascade)
   report      ResearchReport      @relation(fields: [officeId, reportId], references: [officeId, id], onDelete: Cascade)
   authorities ResearchAuthority[]
   notes       ResearchNote[]
-  tasks       Task[]
 
   @@unique([officeId, id])
   @@unique([reportId, version])
@@ -642,30 +639,32 @@ model ResearchVersion {
 /// A judgment cited in a research version. Name, citation, court, date and URL are copied from the source
 /// record (never written by the AI). `judgmentId` points at public.legal_judgments when it came from open data.
 model ResearchAuthority {
-  id           String       @id @default(cuid())
-  officeId     String
-  versionId    String
-  connector    String // "demo" | "ecourts-opendata" | "indiankanoon"
-  sourceId     String
-  judgmentId   String? // public.legal_judgments.id (no foreign key: that table is outside this schema)
-  name         String
-  citation     String?
-  court        String
-  decisionDate DateTime?    @db.Date
-  bench        String?
-  url          String?
-  issue        String       @default("")
-  principle    String       @default("")
-  relevance    String       @default("")
-  distinctions String       @default("")
-  passages     Json         @default("[]")
-  stance       Stance       @default(UNCLASSIFIED)
-  bindingness  Bindingness  @default(UNKNOWN)
-  verification Verification
-  isFictional  Boolean      @default(false)
-  reviewedById String?
-  reviewedAt   DateTime?    @db.Timestamptz(6)
-  position     Int          @default(0)
+  id            String       @id @default(cuid())
+  officeId      String
+  versionId     String
+  connector     String // "demo" | "ecourts-opendata" | "indiankanoon"
+  sourceId      String
+  judgmentId    String? // public.legal_judgments.id (no foreign key: that table is outside this schema)
+  name          String
+  citation      String?
+  court         String
+  decisionDate  DateTime?    @db.Date
+  bench         String?
+  url           String?
+  issue         String       @default("")
+  materialFacts String       @default("")
+  principle     String       @default("")
+  relevance     String       @default("")
+  distinctions  String       @default("")
+  passages      Json         @default("[]")
+  treatment     String? // subsequent treatment (good law), when a source provides it
+  stance        Stance       @default(UNCLASSIFIED)
+  bindingness   Bindingness  @default(UNKNOWN)
+  verification  Verification
+  isFictional   Boolean      @default(false)
+  reviewedById  String?
+  reviewedAt    DateTime?    @db.Timestamptz(6)
+  position      Int          @default(0)
 
   office  Office           @relation(fields: [officeId], references: [id], onDelete: Cascade)
   version ResearchVersion  @relation(fields: [officeId, versionId], references: [officeId, id], onDelete: Cascade)

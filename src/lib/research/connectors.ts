@@ -167,7 +167,7 @@ export function createOpenDataConnector(databaseUrl: () => string): ResearchConn
         const r = await db().query("SELECT EXISTS (SELECT 1 FROM legal_judgments) AS any");
         return r.rows[0]?.any ? { ok: true } : { ok: false, reason: "No judgments are loaded yet (run scripts/judgments/load_judgments.py)." };
       } catch {
-        return { ok: false, reason: "The judgments table is missing (run npm run db:migrate, then the loader)." };
+        return { ok: false, reason: "The judgments table is missing (run `npm run db:migrate`, then the loader)." };
       }
     },
     async search(query, limit) {

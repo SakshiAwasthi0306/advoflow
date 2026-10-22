@@ -211,6 +211,30 @@ describe("demo workspace and research", () => {
     expect(w.cases).toHaveLength(0);
   });
 
+  it("loading and then removing the demo never touches the advocate's own cases", async () => {
+    const w = ws();
+    const mine = createCase(w, S, { number: "O.S. 555/2026", petitioner: "Real Client" });
+    await seedDemo(w, S, async (sha) => `office_a/${sha}.txt`);
+    expect(w.cases.find((c) => c.id === mine.id)?.isDemo).toBe(false);
+    expect(w.cases.filter((c) => c.isDemo)).toHaveLength(3);
+    clearDemo(w, S);
+    expect(w.cases.map((c) => c.id)).toEqual([mine.id]);
+  });
+
+  it("removing the demo keeps the advocate's own uploads but detaches them from removed demo cases", async () => {
+    const w = ws();
+    await seedDemo(w, S, async (sha) => `office_a/${sha}.txt`);
+    const demoCase = w.cases.find((c) => c.isDemo)!;
+    const mine = doc("My own upload to a demo case");
+    const { job } = createJob(w, S, { doc: { ...mine, caseId: demoCase.id }, idempotencyKey: mine.sha256, hint: { caseNumber: "", court: "", context: "" }, extraction: null, error: "x" });
+    clearDemo(w, S);
+    const kept = w.documents.find((d) => d.id === mine.id);
+    expect(kept).toBeDefined();
+    expect(kept!.caseId).toBeNull();
+    expect(w.jobs.some((j) => j.id === job.id)).toBe(true);
+    expect(w.documents.every((d) => !d.caseId || w.cases.some((c) => c.id === d.caseId))).toBe(true);
+  });
+
   it("research versions are preserved and research tasks need confirmation", async () => {
     const w = ws();
     await seedDemo(w, S, async (sha) => `office_a/${sha}.txt`);

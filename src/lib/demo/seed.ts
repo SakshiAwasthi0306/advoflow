@@ -78,6 +78,7 @@ export async function seedDemo(ws: Workspace, session: Session, put: (sha: strin
   requireRole(session, "owner");
   const today = todayIST();
   const o = demoOrders(today);
+  const before = { cases: new Set(ws.cases.map((x) => x.id)), documents: new Set(ws.documents.map((x) => x.id)), orders: new Set(ws.orders.map((x) => x.id)) };
 
   const doc = async (name: string, text: string): Promise<DocumentRecord> => {
     const bytes = new TextEncoder().encode(text);
@@ -115,9 +116,10 @@ export async function seedDemo(ws: Workspace, session: Session, put: (sha: strin
   await ingest("O.S. 77-2023 order 2", o.os77b, true, c.caseId);
   await ingest("O.S. 77-2023 order 3", o.os77c, true, c.caseId);
 
-  for (const cs of ws.cases) cs.isDemo = true;
-  for (const d of ws.documents) d.isDemo = true;
-  for (const ord of ws.orders) ord.isDemo = true;
+  // Mark only what the demo just created: the office may already hold the advocate's own records.
+  for (const cs of ws.cases) if (!before.cases.has(cs.id)) cs.isDemo = true;
+  for (const d of ws.documents) if (!before.documents.has(d.id)) d.isDemo = true;
+  for (const ord of ws.orders) if (!before.orders.has(ord.id)) ord.isDemo = true;
 
   // A manual overdue task and a completed one.
   createTask(ws, session, { caseId: c1, title: "Collect certified copy of the last order", description: "Demo task.", dueDate: addDays(today, -1), priority: "normal" });
@@ -162,6 +164,8 @@ export function clearDemo(ws: Workspace, session: Session) {
   ws.cases = ws.cases.filter((c) => !demoCases.has(c.id));
   ws.clients = ws.clients.filter((c) => !c.isDemo);
   ws.documents = ws.documents.filter((d) => !demoDocs.has(d.id));
+  // The advocate's own uploads stay, but no longer point at a case that is being removed.
+  for (const d of ws.documents) if (d.caseId && demoCases.has(d.caseId)) d.caseId = null;
   ws.jobs = ws.jobs.filter((j) => !demoDocs.has(j.documentId));
   ws.orders = ws.orders.filter((o) => !demoCases.has(o.caseId));
   ws.hearings = ws.hearings.filter((h) => !demoCases.has(h.caseId));

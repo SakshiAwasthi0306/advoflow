@@ -11,10 +11,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:migrate": "tsx scripts/migrate.ts",
+    "db:migrate": "prisma migrate deploy",
     "create-user": "tsx scripts/create-user.ts",
     "prisma:generate": "prisma generate",
-    "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:migrate:status": "prisma migrate status",
     "postinstall": "prisma generate"
   },
