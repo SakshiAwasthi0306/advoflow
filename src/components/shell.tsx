@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { BarChart3, Bell, BookOpen, Briefcase, CalendarDays, CheckSquare, LayoutDashboard, Menu, Scale, Search, Settings, Upload, Users, X } from "lucide-react";
+import { BarChart3, Bell, BookOpen, Briefcase, CalendarDays, CheckSquare, CircleUserRound, LayoutDashboard, Menu, Scale, Search, Settings, Upload, Users, X } from "lucide-react";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -14,6 +14,7 @@ const NAV = [
   { href: "/research", label: "Legal Research", icon: BookOpen },
   { href: "/clients", label: "Clients", icon: Users },
   { href: "/reports", label: "Reports", icon: BarChart3 },
+  { href: "/profile", label: "Profile", icon: CircleUserRound },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

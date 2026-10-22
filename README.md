@@ -107,12 +107,13 @@ Copy `.env.example` to `.env.local` and set only what you need. Every variable i
 
 | Variable | Purpose |
 |---|---|
-| `APP_URL` | Public base URL of the app, e.g. `https://advoflow-phi.vercel.app` (optional; validated if set) |
+| `APP_URL` | Public base URL of the app, e.g. `https://advoflow-phi.vercel.app` (optional; validated if set). Used for links in password-reset and email-change emails; set it in production |
 | `AUTH_MODE` | `demo` (default) or `password` |
 | `AUTH_SECRET` | Required in password mode. 32+ random characters (signs session cookies) |
 | `ALLOW_REGISTRATION` | `true` opens `POST /api/auth/register` (password mode). Default closed |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Send two-step sign-in codes by email through Resend (password mode) |
 | `TWO_STEP_LOGIN` | `required` (default): password, then an emailed code. `off`: password only (no email needed; weaker) |
+| `SMS_DELIVERY` | `log` (codes in the server log: development/tests only) or `none`. Default: `log` in development, `none` in production (no SMS provider yet, so adding a mobile number answers 503) |
 | `EMAIL_DELIVERY` | `resend` or `log` (codes in the server log: development/tests only). Default: `resend` if a key is set, else `log` in development and none in production |
 | `DATABASE_URL` | PostgreSQL URL. Empty = local file store |
 | `DOCUMENT_STORAGE_DIR` | Private folder for uploads (default `.data/uploads`) |
@@ -337,7 +338,7 @@ No compliance certification is claimed.
 ## Setup steps that need you
 
 - **Your own `.env.local`**: copy `.env.example`; fill `DATABASE_URL` (and `DATABASE_URL_UNPOOLED`) if you want PostgreSQL locally. The hosted demo's values live in Vercel → Project → Settings → Environment Variables; `vercel env pull .env.local` copies them if you need them on another machine.
-- **`APP_URL`** is not set on Vercel yet; add it (e.g. `https://advoflow-phi.vercel.app`) when something needs absolute links.
+- **`APP_URL`**: set it on password-mode deployments (e.g. `https://advoflow-app.vercel.app`); password-reset and email-change links are built from it.
 - **Rotate the Neon database password** (Neon → Roles → Reset password) because it was shared in a chat during setup, then update `DATABASE_URL` / `DATABASE_URL_UNPOOLED` in Vercel and `.env.local`.
 - **`ANTHROPIC_API_KEY`** and **`INDIAN_KANOON_API_TOKEN`** are optional and not set; the app runs without them.
 

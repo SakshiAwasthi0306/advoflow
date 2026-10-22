@@ -22,6 +22,7 @@ export const config = {
   allowRegistration: env.allowRegistration,
   twoStepLogin: env.twoStepLogin,
   emailDelivery: env.emailDelivery,
+  smsDelivery: env.smsDelivery,
   resendApiKey: env.resendApiKey,
   emailFrom: env.emailFrom,
   maxUploadBytes: 15 * 1024 * 1024,
@@ -51,6 +52,7 @@ export function integrationStatus() {
     storage: config.blobToken ? { live: true, label: "Vercel Blob (private)" } : { live: false, label: "Local private folder on this server" },
     twoStep: config.twoStepLogin === "required" ? { live: true, label: "Required: password, then a code sent by email" } : { live: false, label: "Off: password only (TWO_STEP_LOGIN=off)" },
     email: config.emailDelivery === "resend" ? { live: true, label: "Sign-in codes sent by email (Resend)" } : { live: false, label: config.emailDelivery === "log" ? "Sign-in codes written to the server log (development only)" : "Not configured: sign-in codes cannot be sent" },
+    sms: config.smsDelivery === "log" ? { live: false, label: "Mobile codes written to the server log (development only)" } : { live: false, label: "No SMS provider: mobile numbers cannot be verified yet" },
     calendar: { live: false, label: "CSV export only; no live calendar sync" },
     messaging: { live: false, label: "WhatsApp hand-off link only; nothing is sent automatically" },
   };

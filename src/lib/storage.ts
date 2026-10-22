@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { get as blobGet, put as blobPut } from "@vercel/blob";
+import { del as blobDel, get as blobGet, put as blobPut } from "@vercel/blob";
 
 /**
  * Private document storage on local disk (demo/dev). Files are written outside /public
@@ -10,6 +10,8 @@ import { get as blobGet, put as blobPut } from "@vercel/blob";
 export interface DocumentStorage {
   put(officeId: string, sha: string, ext: string, bytes: Uint8Array): Promise<string>;
   get(key: string): Promise<Buffer>;
+  /** Remove a stored object (used for replaced profile photos). Missing objects are ignored. */
+  remove(key: string): Promise<void>;
 }
 
 function documentKey(officeId: string, sha: string, ext: string) {
@@ -34,6 +36,9 @@ export class LocalDocumentStorage implements DocumentStorage {
   async get(key: string): Promise<Buffer> {
     return fs.readFile(this.resolve(key));
   }
+  async remove(key: string): Promise<void> {
+    await fs.rm(this.resolve(key), { force: true });
+  }
 }
 
 /**
@@ -52,5 +57,9 @@ export class BlobDocumentStorage implements DocumentStorage {
     const res = await blobGet(`documents/${key}`, { access: "private" });
     if (!res || res.statusCode !== 200) throw new Error("Document not found in storage");
     return Buffer.from(await new Response(res.stream).arrayBuffer());
+  }
+  async remove(key: string): Promise<void> {
+    if (!/^[A-Za-z0-9_-]+\/[a-f0-9]{64}\.[a-z]{2,4}$/.test(key)) throw new Error("Invalid storage key");
+    await blobDel(`documents/${key}`).catch(() => undefined);
   }
 }

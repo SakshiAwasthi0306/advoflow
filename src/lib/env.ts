@@ -25,6 +25,7 @@ const schema = z.object({
   ALLOW_REGISTRATION: opt(z.enum(["true", "false"])),
   EMAIL_DELIVERY: opt(z.enum(["resend", "log"])),
   TWO_STEP_LOGIN: opt(z.enum(["required", "off"])),
+  SMS_DELIVERY: opt(z.enum(["log", "none"])),
   RESEND_API_KEY: opt(z.string()),
   EMAIL_FROM: opt(z.string()),
   VERCEL: opt(z.string()),
@@ -54,6 +55,8 @@ export interface Env {
   twoStepLogin: "required" | "off";
   /** How sign-in codes reach people: "resend" (real email), "log" (server log; development/testing only), "none". */
   emailDelivery: "resend" | "log" | "none";
+  /** Mobile verification codes: "log" (server log, development/tests only) or "none" (no SMS provider yet). */
+  smsDelivery: "log" | "none";
   resendApiKey: string;
   emailFrom: string;
   onVercel: boolean;
@@ -119,6 +122,7 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
     allowRegistration: raw.ALLOW_REGISTRATION === "true",
     twoStepLogin,
     emailDelivery,
+    smsDelivery: raw.SMS_DELIVERY ?? (raw.NODE_ENV === "production" ? "none" : "log"),
     resendApiKey: raw.RESEND_API_KEY ?? "",
     emailFrom: raw.EMAIL_FROM ?? "",
     onVercel,

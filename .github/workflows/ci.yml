@@ -38,13 +38,14 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/advoflow_test
           AUTH_MODE: password
           ALLOW_REGISTRATION: "true"
-          EMAIL_DELIVERY: log # test-only: sign-in codes go to server.log, where the tests read them
+          EMAIL_DELIVERY: log # test-only: sign-in codes and email links go to server.log, where the tests read them
+          SMS_DELIVERY: log # test-only: mobile verification codes likewise
           APP_URL: http://localhost:3100
         run: |
           export AUTH_SECRET="$(openssl rand -base64 48)"
           npx next start -p 3100 > server.log 2>&1 &
           for i in $(seq 1 60); do curl -sf http://localhost:3100/api/health > /dev/null && break; sleep 1; done
-          E2E_BASE_URL=http://localhost:3100 E2E_DATABASE_URL="$DATABASE_URL" E2E_SERVER_LOG=server.log npx vitest run tests/security.e2e.test.ts
+          E2E_BASE_URL=http://localhost:3100 E2E_DATABASE_URL="$DATABASE_URL" E2E_SERVER_LOG=server.log npx vitest run --no-file-parallelism tests/security.e2e.test.ts tests/profile.e2e.test.ts
       - name: Server log (on failure)
         if: failure()
         run: cat server.log || true

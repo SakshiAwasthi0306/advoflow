@@ -7,7 +7,7 @@ import { isCrossSiteWrite } from "@/lib/csrf";
 //     fast first gate; the cookie is fully verified against the database by src/lib/session.ts on every request.
 // Fails closed: any AUTH_MODE other than "demo" (or unset) requires sign-in, matching src/lib/env.ts.
 
-const PUBLIC = ["/api/health", "/login", "/api/auth/login", "/api/auth/verify", "/api/auth/resend-code", "/api/auth/register", "/api/auth/logout", "/_next", "/favicon.ico"];
+const PUBLIC = ["/api/health", "/login", "/api/auth/login", "/api/auth/verify", "/api/auth/resend-code", "/api/auth/register", "/api/auth/logout", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/auth/verify-email", "/forgot-password", "/reset-password", "/_next", "/favicon.ico"];
 
 function deny(status: 401 | 403, code: "UNAUTHENTICATED" | "FORBIDDEN", message: string) {
   const requestId = crypto.randomUUID(); // same shape as src/lib/http.ts (node:crypto is not available here)

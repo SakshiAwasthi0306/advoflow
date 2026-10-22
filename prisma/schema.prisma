@@ -232,20 +232,24 @@ model Office {
 /// A person who can sign in. Credentials live in Account (provider "credential", Argon2id hash in `password`);
 /// sessions in Session. Managed through Better Auth (src/lib/auth/); never returned with a password field.
 model User {
-  id               String   @id @default(cuid())
-  email            String   @unique // normalised: trimmed, lower-case
-  name             String
-  emailVerified    Boolean  @default(false)
-  image            String?
-  isActive         Boolean  @default(true) // false = cannot sign in; existing sessions are rejected
-  twoFactorEnabled Boolean  @default(true) // two-step login (emailed code) is required for every account
-  createdAt        DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt        DateTime @updatedAt @db.Timestamptz(6)
+  id                  String   @id @default(cuid())
+  email               String   @unique // normalised: trimmed, lower-case
+  name                String
+  emailVerified       Boolean  @default(false)
+  image               String?
+  isActive            Boolean  @default(true) // false = cannot sign in; existing sessions are rejected
+  twoFactorEnabled    Boolean  @default(true) // two-step login (emailed code) is required for every account
+  phoneNumber         String?  @unique // E.164, e.g. +919876543210; set only after the number is verified by code
+  phoneNumberVerified Boolean  @default(false)
+  createdAt           DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @db.Timestamptz(6)
 
-  memberships Membership[]
-  sessions    Session[]
-  accounts    Account[]
-  twoFactor   TwoFactor[]
+  memberships      Membership[]
+  sessions         Session[]
+  accounts         Account[]
+  twoFactor        TwoFactor[]
+  profile          AdvocateProfile?
+  deletionRequests AccountDeletionRequest[]
 
   @@schema("app")
 }
@@ -287,6 +291,58 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([providerId, accountId])
+  @@index([userId])
+  @@schema("app")
+}
+
+/// Professional details of an advocate (one per user). Private: only the advocate sees or edits it.
+model AdvocateProfile {
+  userId                  String    @id
+  barEnrolmentNo          String? // as issued, e.g. "KAR/1234/2015"
+  stateBarCouncil         String? // one of src/lib/profile/constants.ts STATE_BAR_COUNCILS
+  practiceSinceYear       Int? // "years of practice" is shown as (current year - this)
+  practiceAreas           String[]  @default([])
+  officeAddressLine1      String?
+  officeAddressLine2      String?
+  officeCity              String?
+  officeState             String?
+  officePincode           String?
+  preferredCourtIds       String[]  @default([]) // app."Court" ids (shared list)
+  preferredCourtLocations String[]  @default([]) // free text, e.g. "Mysuru", "Dharwad"
+  photoKey                String? // private storage key; served only by GET /api/profile/photo to the owner
+  photoMime               String?
+  photoUpdatedAt          DateTime? @db.Timestamptz(6)
+  updatedAt               DateTime  @updatedAt @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // An enrolment number belongs to one advocate within a State Bar Council.
+  @@unique([stateBarCouncil, barEnrolmentNo], map: "profile_bar_enrolment_uniq", where: raw("\"barEnrolmentNo\" IS NOT NULL AND \"stateBarCouncil\" IS NOT NULL"))
+  @@schema("app")
+}
+
+enum DeletionStatus {
+  PENDING
+  CANCELLED
+  COMPLETED
+
+  @@schema("app")
+}
+
+/// "Delete my account" requests. The account is deactivated immediately; an administrator completes or cancels the
+/// request after the waiting period (office data handling depends on whether others still use the office).
+model AccountDeletionRequest {
+  id           String         @id @default(cuid())
+  userId       String
+  status       DeletionStatus @default(PENDING)
+  reason       String?
+  requestedAt  DateTime       @default(now()) @db.Timestamptz(6)
+  scheduledFor DateTime       @db.Timestamptz(6)
+  handledAt    DateTime?      @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, scheduledFor])
   @@index([userId])
   @@schema("app")
 }
