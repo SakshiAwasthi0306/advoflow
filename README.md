@@ -243,7 +243,7 @@ No compliance certification is claimed.
 
 **Demo or pilot on one server** (Node 20+): `npm ci && npm run build && npm start` behind a reverse proxy with HTTPS. Persist `.data/` on disk, or better, use PostgreSQL.
 
-**Vercel** (how the live demo runs): Neon Postgres + private Vercel Blob.
+**Vercel** (how the live demo runs): Neon Postgres + private Vercel Blob. The Vercel project is connected to this repository, so every push to `main` deploys to production automatically (other branches get preview deployments).
 
 - `DATABASE_URL` = Neon **pooled** connection string; `DATABASE_URL_UNPOOLED` = the **direct** one (used for migrations). `neon init` / `neon deploy` write both to `.env.local`; add them to the Vercel project as sensitive variables.
 - Create a **private** Blob store and connect it to the project; that sets `BLOB_READ_WRITE_TOKEN`, and uploads go to Blob (`BlobDocumentStorage` in `src/lib/storage.ts`).
