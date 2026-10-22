@@ -12,15 +12,22 @@ import type { Session, Workspace } from "./types";
 
 export const documents: DocumentStorage = config.blobToken ? new BlobDocumentStorage() : new LocalDocumentStorage(path.resolve(config.storageDir));
 
-/** For server components: the signed-in office's workspace, or a redirect to sign in. */
+/** For server components (pages): the signed-in office's workspace, or a redirect to sign in. */
 export async function pageData(): Promise<{ session: Session; ws: Workspace }> {
-  const session = getSession();
+  const session = await getSession();
   if (!session) redirect("/login");
   return { session, ws: await loadWorkspace(getStore(), session) };
 }
 
-export function withWorkspace<T>(fn: (ws: Workspace, session: Session) => T | Promise<T>) {
-  const session = requireSession();
+/** For API routes that read: like pageData, but answers 401 (JSON) instead of redirecting. */
+export async function apiData(): Promise<{ session: Session; ws: Workspace }> {
+  const session = await requireSession();
+  return { session, ws: await loadWorkspace(getStore(), session) };
+}
+
+/** For API routes that change data: load → change → save the session's office as one unit (see services/workspace.ts). */
+export async function withWorkspace<T>(fn: (ws: Workspace, session: Session) => T | Promise<T>) {
+  const session = await requireSession();
   return mutate(getStore(), session, (ws) => fn(ws, session));
 }
 

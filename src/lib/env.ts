@@ -22,6 +22,7 @@ const schema = z.object({
   RESEARCH_CONNECTOR: opt(z.enum(["demo", "opendata", "indiankanoon", "none"])),
   INDIAN_KANOON_API_TOKEN: opt(z.string()),
   LOG_LEVEL: opt(z.enum(["debug", "info", "warn", "error"])),
+  ALLOW_REGISTRATION: opt(z.enum(["true", "false"])),
   VERCEL: opt(z.string()),
 });
 
@@ -44,6 +45,7 @@ export interface Env {
   researchConnector: "demo" | "indiankanoon" | "opendata" | "none";
   indianKanoonToken: string;
   logLevel: "debug" | "info" | "warn" | "error";
+  allowRegistration: boolean;
   onVercel: boolean;
   issues: EnvIssue[];
 }
@@ -68,6 +70,8 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
   const authMode = !mode || mode === "demo" ? "demo" : "password";
   if (mode && mode !== "demo" && mode !== "password") issues.push({ variable: "AUTH_MODE", message: 'must be "demo" or "password"; treated as "password" so data is not exposed' });
   if (authMode === "password" && (raw.AUTH_SECRET ?? "").length < 32) issues.push({ variable: "AUTH_SECRET", message: "is required in password mode and must be at least 32 characters; nobody can sign in until it is set" });
+  if (authMode === "password" && !raw.DATABASE_URL) issues.push({ variable: "DATABASE_URL", message: "is required in password mode (accounts and sessions are stored in PostgreSQL); nobody can sign in until it is set" });
+  if (raw.ALLOW_REGISTRATION === "true" && authMode !== "password") issues.push({ variable: "ALLOW_REGISTRATION", message: "only applies in password mode" });
 
   const onVercel = !!raw.VERCEL;
   if (onVercel && !raw.DATABASE_URL) issues.push({ variable: "DATABASE_URL", message: "is required on Vercel: the local file store does not persist on serverless hosting" });
@@ -90,6 +94,7 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
     researchConnector,
     indianKanoonToken: raw.INDIAN_KANOON_API_TOKEN ?? "",
     logLevel: raw.LOG_LEVEL ?? (raw.NODE_ENV === "development" ? "debug" : "info"),
+    allowRegistration: raw.ALLOW_REGISTRATION === "true",
     onVercel,
     issues,
   };

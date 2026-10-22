@@ -2,14 +2,14 @@ import type { ResearchReport, ResearchVersion, Session, Workspace } from "../typ
 import { newId, nowISO } from "../util";
 import { createTask } from "./cases";
 import { audit, NotFoundError, requireRole, ValidationError } from "./workspace";
+import { owned } from "../authz";
 
 type Draft = Omit<ResearchVersion, "version" | "notes" | "reviewedAuthorityIds" | "savedAuthorityIds" | "bookmarkedProvisionIds" | "status">;
 
 /** Adds a research run as a NEW version. Earlier versions are never modified or removed. */
 export function saveResearchVersion(ws: Workspace, session: Session, caseId: string, draft: Draft, reportId?: string): { report: ResearchReport; version: ResearchVersion } {
   requireRole(session, "advocate");
-  const c = ws.cases.find((x) => x.id === caseId);
-  if (!c) throw new NotFoundError("Case not found");
+  const c = owned.case(ws, caseId);
   let report = reportId ? ws.research.find((r) => r.id === reportId && r.caseId === caseId) : undefined;
   if (reportId && !report) throw new NotFoundError("Research report not found");
   if (!report) {
@@ -31,8 +31,7 @@ export function saveResearchVersion(ws: Workspace, session: Session, caseId: str
 }
 
 function getVersion(ws: Workspace, reportId: string, v: number) {
-  const report = ws.research.find((r) => r.id === reportId);
-  if (!report) throw new NotFoundError("Research report not found");
+  const report = owned.report(ws, reportId);
   const version = report.versions.find((x) => x.version === v);
   if (!version) throw new NotFoundError("Version not found");
   return { report, version };

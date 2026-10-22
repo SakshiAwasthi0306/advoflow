@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export const POST = route(async (req) => {
-  const session = requireSession();
+  const session = await requireSession();
   rateLimit(`process:${session.officeId}`, 20);
   const form = await req.formData();
   const items: IntakeItem[] = [];

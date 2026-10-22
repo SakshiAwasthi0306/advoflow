@@ -33,3 +33,17 @@ jobs:
         env:
           PG_TEST_URL: postgres://postgres:postgres@localhost:5432/advoflow_test
       - run: npm run build
+      - name: Security tests over HTTP (password mode, throwaway database)
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/advoflow_test
+          AUTH_MODE: password
+          ALLOW_REGISTRATION: "true"
+          APP_URL: http://localhost:3100
+        run: |
+          export AUTH_SECRET="$(openssl rand -base64 48)"
+          npx next start -p 3100 > server.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:3100/api/health > /dev/null && break; sleep 1; done
+          E2E_BASE_URL=http://localhost:3100 E2E_DATABASE_URL="$DATABASE_URL" npx vitest run tests/security.e2e.test.ts
+      - name: Server log (on failure)
+        if: failure()
+        run: cat server.log || true

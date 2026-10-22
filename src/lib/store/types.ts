@@ -1,23 +1,9 @@
-import type { Role, Workspace } from "../types";
+import type { Workspace } from "../types";
 
 export class ConflictError extends Error {
   constructor() {
     super("The workspace was changed by someone else. Reload and try again.");
   }
-}
-
-export interface UserRecord {
-  id: string;
-  email: string;
-  name: string;
-  passwordHash: string;
-  createdAt: string;
-}
-
-export interface Membership {
-  userId: string;
-  officeId: string;
-  role: Role;
 }
 
 /**
@@ -31,10 +17,5 @@ export interface WorkspaceStore {
   /** Saves the whole aggregate atomically. Throws ConflictError if `expectedVersion` is stale. */
   save(ws: Workspace, expectedVersion: number): Promise<void>;
   createOffice(ws: Workspace): Promise<void>;
-  // Directory (users and memberships), used by password login.
-  findUserByEmail(email: string): Promise<UserRecord | null>;
-  getUser(id: string): Promise<UserRecord | null>;
-  createUser(user: UserRecord): Promise<void>;
-  addMembership(m: Membership): Promise<void>;
-  membershipsFor(userId: string): Promise<Membership[]>;
+  // Users, credentials and sessions are not part of the store: they are managed by Better Auth (src/lib/auth/).
 }

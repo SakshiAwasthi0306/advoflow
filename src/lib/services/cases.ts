@@ -3,6 +3,7 @@ import { caseInputSchema, clientInputSchema, taskInputSchema } from "../schemas"
 import type { CaseRecord, Client, ClientUpdate, Session, Task, Workspace } from "../types";
 import { caseNumberKey, newId, nowISO } from "../util";
 import { audit, NotFoundError, requireRole, ValidationError } from "./workspace";
+import { owned } from "../authz";
 
 export const titleFromParties = (p: { petitioner: string; respondent: string }) =>
   p.petitioner && p.respondent ? `${p.petitioner} v. ${p.respondent}` : p.petitioner || p.respondent || "";
@@ -18,7 +19,7 @@ export function createCase(ws: Workspace, session: Session, raw: unknown): CaseR
   const input = caseInputSchema.parse(raw);
   const dups = findDuplicates(ws, input.number);
   if (dups.length) throw new ValidationError(`Case ${dups[0].number} already exists in this office. Open it instead of creating a duplicate.`);
-  if (input.clientId && !ws.clients.some((c) => c.id === input.clientId)) throw new NotFoundError("Client not found");
+  if (input.clientId) owned.client(ws, input.clientId);
   const now = nowISO();
   const parties = { petitioner: input.petitioner, respondent: input.respondent };
   const c: CaseRecord = {
@@ -33,12 +34,11 @@ export function createCase(ws: Workspace, session: Session, raw: unknown): CaseR
 
 export function updateCase(ws: Workspace, session: Session, id: string, raw: unknown): CaseRecord {
   requireRole(session, "clerk");
-  const c = ws.cases.find((x) => x.id === id);
-  if (!c) throw new NotFoundError("Case not found");
+  const c = owned.case(ws, id);
   const input = caseInputSchema.parse(raw);
   const dups = findDuplicates(ws, input.number, id);
   if (dups.length) throw new ValidationError(`Another case already uses the number ${dups[0].number}.`);
-  if (input.clientId && !ws.clients.some((x) => x.id === input.clientId)) throw new NotFoundError("Client not found");
+  if (input.clientId) owned.client(ws, input.clientId);
   const before = JSON.stringify({ n: c.number, court: c.court, stage: c.stage });
   Object.assign(c, {
     number: input.number, numberKey: caseNumberKey(input.number), cnr: input.cnr ? input.cnr.toUpperCase() : null,
@@ -52,8 +52,7 @@ export function updateCase(ws: Workspace, session: Session, id: string, raw: unk
 
 export function setCaseStatus(ws: Workspace, session: Session, id: string, status: CaseRecord["status"]) {
   requireRole(session, "advocate");
-  const c = ws.cases.find((x) => x.id === id);
-  if (!c) throw new NotFoundError("Case not found");
+  const c = owned.case(ws, id);
   if (status === "active" && c.numberKey && findDuplicates(ws, c.number, id).length) throw new ValidationError("Another live case uses this number.");
   c.status = status;
   c.updatedAt = nowISO();
@@ -65,7 +64,7 @@ export function setCaseStatus(ws: Workspace, session: Session, id: string, statu
 export function createTask(ws: Workspace, session: Session, raw: unknown, source: Partial<Pick<Task, "source" | "sourceReportId" | "sourceOrderId">> = {}): Task {
   requireRole(session, "clerk");
   const input = taskInputSchema.parse(raw);
-  if (!ws.cases.some((c) => c.id === input.caseId)) throw new NotFoundError("Case not found");
+  owned.case(ws, input.caseId);
   const t: Task = {
     id: newId("task"), caseId: input.caseId, title: input.title, description: input.description, dueDate: input.dueDate,
     priority: input.priority, status: "open", source: source.source ?? "manual", sourceOrderId: source.sourceOrderId ?? null,
@@ -87,8 +86,7 @@ const taskPatch = z.object({
 
 export function updateTask(ws: Workspace, session: Session, id: string, raw: unknown): Task {
   requireRole(session, "clerk");
-  const t = ws.tasks.find((x) => x.id === id);
-  if (!t) throw new NotFoundError("Task not found");
+  const t = owned.task(ws, id);
   const p = taskPatch.parse(raw);
   if (p.status && p.status !== t.status) {
     t.status = p.status;
@@ -110,8 +108,7 @@ export function upsertClient(ws: Workspace, session: Session, raw: unknown, id?:
   const input = clientInputSchema.parse(raw);
   const now = nowISO();
   if (id) {
-    const c = ws.clients.find((x) => x.id === id);
-    if (!c) throw new NotFoundError("Client not found");
+    const c = owned.client(ws, id);
     Object.assign(c, input, { updatedAt: now });
     audit(ws, session, "client.updated", "client", c.id, null, c.name);
     return c;
@@ -124,9 +121,8 @@ export function upsertClient(ws: Workspace, session: Session, raw: unknown, id?:
 
 export function linkClient(ws: Workspace, session: Session, caseId: string, clientId: string | null) {
   requireRole(session, "clerk");
-  const c = ws.cases.find((x) => x.id === caseId);
-  if (!c) throw new NotFoundError("Case not found");
-  if (clientId && !ws.clients.some((x) => x.id === clientId)) throw new NotFoundError("Client not found");
+  const c = owned.case(ws, caseId);
+  if (clientId) owned.client(ws, clientId);
   c.clientId = clientId;
   audit(ws, session, "case.client_linked", "case", c.id, c.id, clientId ?? "none");
 }
@@ -135,8 +131,7 @@ export function linkClient(ws: Workspace, session: Session, caseId: string, clie
 
 export function editClientUpdate(ws: Workspace, session: Session, id: string, patch: { text?: string; status?: ClientUpdate["status"] }) {
   requireRole(session, "clerk");
-  const u = ws.clientUpdates.find((x) => x.id === id);
-  if (!u) throw new NotFoundError("Message not found");
+  const u = owned.clientUpdate(ws, id);
   if (patch.text !== undefined) {
     if (patch.text.length > 2000) throw new ValidationError("Message is too long");
     u.text = patch.text;

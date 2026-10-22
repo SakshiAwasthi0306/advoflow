@@ -10,6 +10,9 @@ import { researchAction } from "@/lib/services/research";
 import { ConflictError } from "@/lib/store/types";
 import { createOpenDataConnector } from "@/lib/research/connectors";
 import type { Session, Workspace } from "@/lib/types";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@/generated/prisma/client";
+import { AccountExistsError, createAccount } from "@/lib/auth/accounts";
 
 const url = process.env.PG_TEST_URL;
 const run = Math.random().toString(36).slice(2, 8);
@@ -158,15 +161,21 @@ describe.skipIf(!url)("PrismaStore (PostgreSQL)", () => {
     await c.end();
   });
 
-  it("stores users and memberships for password sign-in", async () => {
-    const id = `user_${run}`;
-    await store.createUser({ id, email: `Asha.${run}@Example.com`, name: "Asha", passwordHash: "scrypt$x", createdAt: new Date().toISOString() });
-    await store.addMembership({ userId: id, officeId: A.officeId, role: "advocate" });
-    await store.addMembership({ userId: id, officeId: A.officeId, role: "advocate" }); // idempotent
-    expect((await store.findUserByEmail(`asha.${run}@example.com`))?.id).toBe(id);
-    expect(await store.membershipsFor(id)).toEqual([{ userId: id, officeId: A.officeId, role: "advocate" }]);
-    // Placeholder members (no password) can never sign in.
-    expect(await store.findUserByEmail(`${A.userId}@placeholder.invalid`)).toBeNull();
+  it("provisions sign-in accounts: normalised unique email, Argon2id credential, membership; no plaintext stored", async () => {
+    const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url! }) });
+    try {
+      const acc = await createAccount(db, { email: `  Asha.${run}@Example.com `, name: "Asha", password: "a long test password", role: "advocate", officeId: A.officeId });
+      expect(acc.email).toBe(`asha.${run}@example.com`);
+      const cred = await db.account.findFirstOrThrow({ where: { userId: acc.userId, providerId: "credential" } });
+      expect(cred.accountId).toBe(acc.userId);
+      expect(cred.password?.startsWith("$argon2id$")).toBe(true);
+      expect(JSON.stringify(await db.user.findUnique({ where: { id: acc.userId } }))).not.toContain("a long test password");
+      expect((await db.membership.findFirstOrThrow({ where: { userId: acc.userId } })).role).toBe("ADVOCATE");
+      await expect(createAccount(db, { email: `asha.${run}@EXAMPLE.com`, name: "Dup", password: "another long password", role: "viewer", officeId: A.officeId })).rejects.toBeInstanceOf(AccountExistsError);
+      await db.user.delete({ where: { id: acc.userId } });
+    } finally {
+      await db.$disconnect();
+    }
   });
 
   it("searches loaded open-data judgments by keyword and needs at least two matching terms", async () => {

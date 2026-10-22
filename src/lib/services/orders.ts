@@ -4,6 +4,7 @@ import { caseNumberKey, newId, nowISO, sha256, slugKey } from "../util";
 import { clientUpdateEn, clientUpdateKn } from "../messages";
 import { audit, NotFoundError, requireRole, ValidationError } from "./workspace";
 import { titleFromParties } from "./cases";
+import { owned } from "../authz";
 
 const liveCases = (ws: Workspace) => ws.cases.filter((c) => c.status !== "archived");
 
@@ -115,8 +116,7 @@ export function createJob(
 
 export function rejectJob(ws: Workspace, session: Session, jobId: string) {
   requireRole(session, "clerk");
-  const job = ws.jobs.find((j) => j.id === jobId);
-  if (!job) throw new NotFoundError("Review item not found");
+  const job = owned.job(ws, jobId);
   if (job.status === "approved") throw new ValidationError("This order was already approved; it cannot be rejected now.");
   job.status = "rejected";
   job.decidedAt = nowISO();
@@ -127,8 +127,7 @@ export function rejectJob(ws: Workspace, session: Session, jobId: string) {
 /** Reopen a failed or rejected job for manual entry. The original document is kept throughout. */
 export function reopenJob(ws: Workspace, session: Session, jobId: string) {
   requireRole(session, "clerk");
-  const job = ws.jobs.find((j) => j.id === jobId);
-  if (!job) throw new NotFoundError("Review item not found");
+  const job = owned.job(ws, jobId);
   if (job.status === "approved") return job;
   job.status = "needs_review";
   return job;
@@ -141,8 +140,7 @@ export function reopenJob(ws: Workspace, session: Session, jobId: string) {
  */
 export function approveJob(ws: Workspace, session: Session, jobId: string, input: ApproveInput): { orderId: string; caseId: string; alreadyApproved: boolean } {
   requireRole(session, "advocate");
-  const job = ws.jobs.find((j) => j.id === jobId);
-  if (!job) throw new NotFoundError("Review item not found");
+  const job = owned.job(ws, jobId);
   if (job.status === "approved" && job.resultOrderId) {
     const o = ws.orders.find((x) => x.id === job.resultOrderId)!;
     return { orderId: o.id, caseId: o.caseId, alreadyApproved: true };
@@ -163,8 +161,8 @@ export function approveJob(ws: Workspace, session: Session, jobId: string, input
   // 1. Case
   let c: CaseRecord;
   if (input.caseDecision.mode === "existing") {
-    const found = ws.cases.find((x) => x.id === (input.caseDecision as { caseId: string }).caseId && x.status !== "archived");
-    if (!found) throw new NotFoundError("Selected case not found");
+    const found = owned.case(ws, (input.caseDecision as { caseId: string }).caseId);
+    if (found.status === "archived") throw new NotFoundError("Case not found");
     c = found;
   } else {
     const d = input.caseDecision;
@@ -269,8 +267,7 @@ function applyNextHearing(ws: Workspace, session: Session, caseId: string, date:
 
 export function confirmHearing(ws: Workspace, session: Session, hearingId: string, date?: string) {
   requireRole(session, "advocate");
-  const h = ws.hearings.find((x) => x.id === hearingId);
-  if (!h) throw new NotFoundError("Hearing not found");
+  const h = owned.hearing(ws, hearingId);
   if (h.status !== "awaiting_verification") throw new ValidationError("Only hearings awaiting verification can be confirmed.");
   if (date && date !== h.date) {
     // Correcting the date: keep the proposed one as superseded history.
@@ -290,8 +287,7 @@ export function confirmHearing(ws: Workspace, session: Session, hearingId: strin
 
 export function cancelHearing(ws: Workspace, session: Session, hearingId: string) {
   requireRole(session, "advocate");
-  const h = ws.hearings.find((x) => x.id === hearingId);
-  if (!h) throw new NotFoundError("Hearing not found");
+  const h = owned.hearing(ws, hearingId);
   h.status = "cancelled";
   audit(ws, session, "hearing.cancelled", "hearing", h.id, h.caseId, h.date);
 }
@@ -299,8 +295,8 @@ export function cancelHearing(ws: Workspace, session: Session, hearingId: string
 /** The advocate decides, task by task, whether a date change moves the task. */
 export function resolveReschedule(ws: Workspace, session: Session, taskId: string, action: "move" | "keep") {
   requireRole(session, "clerk");
-  const t = ws.tasks.find((x) => x.id === taskId);
-  if (!t || !t.needsReschedule) throw new NotFoundError("Nothing to reschedule");
+  const t = owned.task(ws, taskId);
+  if (!t.needsReschedule) throw new NotFoundError("Nothing to reschedule");
   if (t.status === "done") throw new ValidationError("Completed tasks are never rescheduled.");
   const { from, to } = t.needsReschedule;
   if (action === "move") t.dueDate = to;

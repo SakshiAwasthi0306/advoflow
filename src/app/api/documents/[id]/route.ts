@@ -1,12 +1,11 @@
-import { documents, pageData, route } from "@/lib/server";
+import { documents, apiData, route } from "@/lib/server";
+import { owned } from "@/lib/authz";
 export const dynamic = "force-dynamic";
-import { NotFoundError } from "@/lib/services/workspace";
 
 // Serves an original document only to members of the office that owns it.
 export const GET = route(async (_req, { params }: { params: { id: string } }) => {
-  const { ws } = await pageData();
-  const d = ws.documents.find((x) => x.id === params.id);
-  if (!d) throw new NotFoundError("Document not found");
+  const { ws } = await apiData();
+  const d = owned.document(ws, params.id);
   const bytes = await documents.get(d.storageKey);
   const safe = d.filename.replace(/[^\w.\- ]+/g, "_");
   return new Response(new Uint8Array(bytes), {

@@ -39,13 +39,14 @@ describe("environment validation", () => {
   });
 
   it("fails closed: an unknown AUTH_MODE requires sign-in", () => {
-    const e = parseEnv({ AUTH_MODE: "pasword", AUTH_SECRET: "x".repeat(40) });
+    const e = parseEnv({ AUTH_MODE: "pasword", AUTH_SECRET: "x".repeat(40), DATABASE_URL: PG });
     expect(e.authMode).toBe("password");
     expect(e.issues.map((i) => i.variable)).toEqual(["AUTH_MODE"]);
   });
 
   it("checks settings that depend on each other", () => {
-    expect(parseEnv({ AUTH_MODE: "password", AUTH_SECRET: "short" }).issues.map((i) => i.variable)).toEqual(["AUTH_SECRET"]);
+    expect(parseEnv({ AUTH_MODE: "password", AUTH_SECRET: "short", DATABASE_URL: PG }).issues.map((i) => i.variable)).toEqual(["AUTH_SECRET"]);
+    expect(parseEnv({ AUTH_MODE: "password", AUTH_SECRET: "y".repeat(48) }).issues.map((i) => i.variable)).toEqual(["DATABASE_URL"]); // accounts live in PostgreSQL
     expect(parseEnv({ VERCEL: "1" }).issues.map((i) => i.variable)).toEqual(["DATABASE_URL"]);
     expect(parseEnv({ RESEARCH_CONNECTOR: "opendata" }).issues.map((i) => i.variable)).toEqual(["RESEARCH_CONNECTOR"]);
     expect(parseEnv({ RESEARCH_CONNECTOR: "indiankanoon" }).issues.map((i) => i.variable)).toEqual(["INDIAN_KANOON_API_TOKEN"]);

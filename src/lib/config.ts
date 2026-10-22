@@ -19,6 +19,7 @@ export const config = {
   researchConnector: env.researchConnector,
   indianKanoonToken: env.indianKanoonToken,
   logLevel: env.logLevel,
+  allowRegistration: env.allowRegistration,
   maxUploadBytes: 15 * 1024 * 1024,
 };
 

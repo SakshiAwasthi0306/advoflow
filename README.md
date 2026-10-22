@@ -109,7 +109,8 @@ Copy `.env.example` to `.env.local` and set only what you need. Every variable i
 |---|---|
 | `APP_URL` | Public base URL of the app, e.g. `https://advoflow-phi.vercel.app` (optional; validated if set) |
 | `AUTH_MODE` | `demo` (default) or `password` |
-| `AUTH_SECRET` | Required in password mode. 32+ random characters |
+| `AUTH_SECRET` | Required in password mode. 32+ random characters (signs session cookies) |
+| `ALLOW_REGISTRATION` | `true` opens `POST /api/auth/register` (password mode). Default closed |
 | `DATABASE_URL` | PostgreSQL URL. Empty = local file store |
 | `DOCUMENT_STORAGE_DIR` | Private folder for uploads (default `.data/uploads`) |
 | `BLOB_READ_WRITE_TOKEN` | Store uploads in a private Vercel Blob store instead of the local folder |
@@ -143,15 +144,15 @@ curl -s localhost:3000/api/health/ready   # confirms the app reaches the databas
 - Prisma's own history table lives in `app` (`prisma.config.ts` adds `schema=app` for the CLI). Prisma talks to Postgres through `node-postgres` (the Prisma `pg` adapter); the generated client (`src/generated/prisma/`) is not committed and `npm install` regenerates it.
 - Schema changes: edit `prisma/schema.prisma`, run `npx prisma migrate dev --name <change>` against a local database or a Neon **branch**, review the SQL, commit it. Never run `prisma db push` or `prisma migrate reset` against a database with real data.
 - Without `DATABASE_URL` the app uses the local demo file store in `.data/` instead (not for real data).
-### Password mode and users
+### Sign-in, accounts and roles
+
+`AUTH_MODE=password` turns on email + password sign-in (Better Auth, Argon2id, database sessions, HttpOnly cookies). It needs `AUTH_SECRET` (32+ random characters) and `DATABASE_URL`. Registration is **closed** unless `ALLOW_REGISTRATION=true`; create accounts with:
 
 ```bash
-export AUTH_MODE=password AUTH_SECRET="$(openssl rand -base64 48)"
-npm run create-user -- --email asha@example.com --name "Asha Rao" --password 'a-long-password' \
-  --office office_rao --office-name "Rao Chambers" --role owner
+npm run create-user -- --email you@example.com --name "Your Name" --office-name "Your Chambers" --role owner   # password typed at a hidden prompt
 ```
 
-Roles: **owner** (everything, demo data, export), **advocate** (approves orders and research), **clerk** (uploads, tasks, clients), **viewer** (read-only). Permissions are checked on the server for every change.
+Roles: **owner** (everything, demo data, export), **advocate** (approves orders and research), **clerk** (uploads, tasks, clients), **viewer** (read-only). Every request is checked on the server: the office comes only from the session, another office's record answers 404, and roles are enforced per action. Endpoints (`/api/auth/login`, `/logout`, `/me`, `/register`), the authorization pattern, CSRF, rate limits, production requirements and known gaps: **[docs/security.md](docs/security.md)**.
 
 ### AI (Anthropic Claude)
 
@@ -269,7 +270,7 @@ tests/                 unit + PostgreSQL tests; tests/e2e browser walkthrough
 ```bash
 npm run typecheck
 npm run lint
-npm test                    # unit and integration tests (vitest), incl. env validation, logging, error format and health checks
+npm test                    # unit and integration tests (vitest), incl. env validation, logging, error format, health checks and authorization
 PG_TEST_URL=postgres://postgres@localhost:5432/advoflow_test npm test   # also applies the Prisma migrations to that THROWAWAY database, checks the schema rules and runs the Prisma store tests
 ```
 

@@ -5,8 +5,8 @@ import { LoginForm } from "@/components/login-form";
 
 export const metadata = { title: "Sign in" };
 
-export default function Login() {
-  if (config.authMode === "demo" || getSession()) redirect("/");
+export default async function Login() {
+  if (config.authMode === "demo" || (await getSession())) redirect("/");
   return (
     <main className="grid min-h-screen place-items-center bg-sidebar px-4">
       <div className="card w-full max-w-sm p-6">

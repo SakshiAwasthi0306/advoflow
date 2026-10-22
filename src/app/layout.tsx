@@ -13,7 +13,7 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, them
 export const dynamic = "force-dynamic";
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const session = getSession();
+  const session = await getSession();
   if (!session) {
     return (
       <html lang="en"><body><ToastProvider>{children}</ToastProvider></body></html>

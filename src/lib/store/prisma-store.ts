@@ -4,7 +4,7 @@ import type {
   AuditEntry, Authority, CaseRecord, Client, ClientUpdate, CourtOrder, DateChange, DocumentRecord, Extraction, Hearing,
   Member, ProcessingJob, ResearchReport, ResearchVersion, Role, Task, Workspace,
 } from "../types";
-import { ConflictError, type Membership, type UserRecord, type WorkspaceStore } from "./types";
+import { ConflictError, type WorkspaceStore } from "./types";
 
 /**
  * PostgreSQL store on the Step 2 data model (schema "app"), through Prisma.
@@ -372,35 +372,6 @@ export class PrismaStore implements WorkspaceStore {
     this.remember(r.ws, r.stamps);
     return this.loaded.get(r.ws)!;
   }
-
-  // ---------------- directory (password sign-in)
-
-  async findUserByEmail(email: string) {
-    const u = await this.db.user.findUnique({ where: { email: email.toLowerCase() } });
-    return u && u.passwordHash ? toUserRecord(u) : null;
-  }
-  async getUser(id: string) {
-    const u = await this.db.user.findUnique({ where: { id } });
-    return u ? toUserRecord(u) : null;
-  }
-  async createUser(u: UserRecord) {
-    await this.db.user.create({ data: { id: u.id, email: u.email.toLowerCase(), name: u.name, passwordHash: u.passwordHash, createdAt: new Date(u.createdAt) } });
-  }
-  async addMembership(m: Membership) {
-    await this.db.membership.upsert({
-      where: { officeId_userId: { officeId: m.officeId, userId: m.userId } },
-      create: { officeId: m.officeId, userId: m.userId, role: dbRole(m.role) },
-      update: {},
-    });
-  }
-  async membershipsFor(userId: string) {
-    const ms = await this.db.membership.findMany({ where: { userId } });
-    return ms.map((m) => ({ userId: m.userId, officeId: m.officeId, role: low<Role>(m.role) }));
-  }
-}
-
-function toUserRecord(u: { id: string; email: string; name: string; passwordHash: string | null; createdAt: Date }): UserRecord {
-  return { id: u.id, email: u.email, name: u.name, passwordHash: u.passwordHash ?? "", createdAt: iso(u.createdAt) };
 }
 
 /** Members listed on the Workspace get a User (placeholder email if none) and a Membership. Removal is not done here. */

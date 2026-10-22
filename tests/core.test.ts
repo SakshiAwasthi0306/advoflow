@@ -13,7 +13,7 @@ import { researchAction, saveResearchVersion } from "@/lib/services/research";
 import { seedDemo, clearDemo } from "@/lib/demo/seed";
 import { FileStore } from "@/lib/store/file-store";
 import { caseNumberKey, parseIndianDate, sha256, todayIST, addDays } from "@/lib/util";
-import { readSession, signSession, hashPassword, verifyPassword } from "@/lib/auth";
+import { hashPassword, verifyPassword, normalizeEmail } from "@/lib/auth/password";
 import { whatsappLink } from "@/lib/messages";
 
 const S: Session = { userId: "u1", officeId: "office_a", role: "owner", name: "Test", mode: "demo" };
@@ -275,17 +275,15 @@ describe("storage isolation and concurrency", () => {
 });
 
 describe("security helpers", () => {
-  it("sessions are signed and expire; passwords are hashed", () => {
-    const secret = "x".repeat(40);
-    const tok = signSession({ uid: "u", oid: "o", role: "advocate", name: "N" }, secret);
-    expect(readSession(tok, secret)?.officeId).toBe("o");
-    expect(readSession(tok, "y".repeat(40))).toBeNull();
-    const [p, sig] = tok.split(".");
-    const forged = Buffer.from(JSON.stringify({ ...JSON.parse(Buffer.from(p, "base64url").toString()), oid: "other" })).toString("base64url");
-    expect(readSession(`${forged}.${sig}`, secret)).toBeNull();
-    const h = hashPassword("correct horse");
-    expect(verifyPassword("correct horse", h)).toBe(true);
-    expect(verifyPassword("wrong", h)).toBe(false);
+  it("passwords are hashed with Argon2id and verified safely", async () => {
+    const h = await hashPassword("correct horse battery");
+    expect(h.startsWith("$argon2id$v=19$m=19456,t=2,p=1$")).toBe(true);
+    expect(h).not.toContain("correct horse");
+    expect(await verifyPassword(h, "correct horse battery")).toBe(true);
+    expect(await verifyPassword(h, "wrong password!!")).toBe(false);
+    expect(await hashPassword("correct horse battery")).not.toBe(h); // salted
+    expect(await verifyPassword("scrypt$old$format", "x")).toBe(false); // malformed or foreign hashes never verify
+    expect(normalizeEmail("  Asha.Rao@Example.COM ")).toBe("asha.rao@example.com");
   });
   it("WhatsApp links are encoded", () => {
     expect(whatsappLink("98450 12345", "Next date: 05-11 & more")).toBe("https://wa.me/919845012345?text=Next%20date%3A%2005-11%20%26%20more");
