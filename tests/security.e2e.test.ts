@@ -1,8 +1,12 @@
 // End-to-end security tests over real HTTP against a running AdvoFlow in PASSWORD mode.
-// Runs only when E2E_BASE_URL and E2E_DATABASE_URL are set, and must point at a THROWAWAY database, e.g.
-//   AUTH_MODE=password AUTH_SECRET=<32+ chars> ALLOW_REGISTRATION=true DATABASE_URL=<test db> npx next start -p 3100
-//   E2E_BASE_URL=http://localhost:3100 E2E_DATABASE_URL=<test db> npx vitest run tests/security.e2e.test.ts
+// Runs only when E2E_BASE_URL, E2E_DATABASE_URL and E2E_SERVER_LOG are set, against a THROWAWAY database, e.g.
+//   AUTH_MODE=password AUTH_SECRET=<32+ chars> ALLOW_REGISTRATION=true EMAIL_DELIVERY=log DATABASE_URL=<test db> \
+//     npx next start -p 3100 > server.log 2>&1 &
+//   E2E_BASE_URL=http://localhost:3100 E2E_DATABASE_URL=<test db> E2E_SERVER_LOG=server.log npx vitest run tests/security.e2e.test.ts
+// Sign-in is two-step: the emailed code is read from the server log (EMAIL_DELIVERY=log, test-only delivery).
 // Two independent advocates (A and B) register; B then tries every way of reaching A's records.
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Client } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -11,6 +15,8 @@ import { createAccount } from "@/lib/auth/accounts";
 
 const BASE = process.env.E2E_BASE_URL;
 const DB = process.env.E2E_DATABASE_URL;
+const LOG = process.env.E2E_SERVER_LOG;
+const codesSeen: string[] = [];
 const run = Math.random().toString(36).slice(2, 8);
 const PASSWORDS = [`A-pass-${run}-correct horse`, `B-pass-${run}-battery staple`, `V-pass-${run}-viewer only!!`];
 const seen: string[] = []; // every response body, checked for leaked secrets at the end
@@ -31,10 +37,41 @@ async function http(method: string, path: string, opts: { jar?: Jar; json?: unkn
     for (const c of r.headers.getSetCookie()) {
       const [pair] = c.split(";");
       const [name, value] = pair.split("=");
-      if (name.includes("session_token")) opts.jar.cookie = value ? `${name}=${value}` : "";
+      if (name.includes("session_token") || name.includes("two_factor")) {
+        const others = opts.jar.cookie.split("; ").filter((x) => x && !x.startsWith(`${name}=`));
+        opts.jar.cookie = [...others, ...(value ? [`${name}=${value}`] : [])].join("; ");
+      }
     }
   }
   return { status: r.status, body, text, headers: r.headers };
+}
+
+/** The newest sign-in code the server "emailed" to this address (EMAIL_DELIVERY=log writes it with a hash of the address). */
+async function codeFor(email: string, after = 0): Promise<string> {
+  const to = createHash("sha256").update(`otp|${email.trim().toLowerCase()}`).digest("hex").slice(0, 32);
+  for (let i = 0; i < 40; i++) {
+    const lines = readFileSync(LOG!, "utf8").split("\n").filter((l) => l.includes('"auth.login_code') && l.includes(to));
+    if (lines.length > after) {
+      const code = JSON.parse(lines[lines.length - 1]).code as string;
+      codesSeen.push(code);
+      return code;
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  throw new Error("no sign-in code in the server log");
+}
+const codeCount = (email: string) => {
+  const to = createHash("sha256").update(`otp|${email.trim().toLowerCase()}`).digest("hex").slice(0, 32);
+  return readFileSync(LOG!, "utf8").split("\n").filter((l) => l.includes('"auth.login_code') && l.includes(to)).length;
+};
+
+/** Full two-step sign-in. Returns the /verify response. */
+async function signIn(jar: Jar, email: string, password: string): Promise<Res> {
+  const before = codeCount(email);
+  const step1 = await http("POST", "/api/auth/login", { jar, json: { email, password } });
+  expect(step1.status).toBe(200);
+  expect(step1.body.status).toBe("code_required");
+  return http("POST", "/api/auth/verify", { jar, json: { code: await codeFor(email, before) } });
 }
 
 const expectError = (r: Res, status: number, code: string) => {
@@ -43,7 +80,7 @@ const expectError = (r: Res, status: number, code: string) => {
   expect(r.text).not.toMatch(/at \S+\.(ts|js):\d+|prisma|postgres|SELECT /i); // no stack traces or SQL
 };
 
-describe.skipIf(!BASE || !DB)("security over HTTP (password mode)", () => {
+describe.skipIf(!BASE || !DB || !LOG)("security over HTTP (password mode)", () => {
   const A: Jar = { cookie: "" };
   const B: Jar = { cookie: "" };
   const V: Jar = { cookie: "" };
@@ -56,12 +93,18 @@ describe.skipIf(!BASE || !DB)("security over HTTP (password mode)", () => {
   beforeAll(async () => {
     db = new PrismaClient({ adapter: new PrismaPg({ connectionString: DB! }) });
     await db.rateLimit.deleteMany({}); // throwaway database: start every run with fresh rate-limit counters
-    const ra = await http("POST", "/api/auth/register", { jar: A, json: { name: "Advocate A", email: emailA, password: PASSWORDS[0], officeName: "A Chambers" } });
-    const rb = await http("POST", "/api/auth/register", { jar: B, json: { name: "Advocate B", email: emailB, password: PASSWORDS[1], officeName: "B Chambers" } });
-    expect(ra.status).toBe(201);
-    expect(rb.status).toBe(201);
-    ids.officeA = ra.body.office.id;
-    ids.officeB = rb.body.office.id;
+    // Registration also ends in the code step: the account gets a session only after confirming the emailed code.
+    for (const [jar, name, email, pw, office] of [[A, "Advocate A", emailA, PASSWORDS[0], "A Chambers"], [B, "Advocate B", emailB, PASSWORDS[1], "B Chambers"]] as const) {
+      const before = codeCount(email);
+      const reg = await http("POST", "/api/auth/register", { jar, json: { name, email, password: pw, officeName: office } });
+      expect(reg.status).toBe(201);
+      expect(reg.body.status).toBe("code_required");
+      expectError(await http("GET", "/api/auth/me", { jar }), 401, "UNAUTHENTICATED"); // no session yet
+      const v = await http("POST", "/api/auth/verify", { jar, json: { code: await codeFor(email, before) } });
+      expect(v.status).toBe(200);
+      if (jar === A) ids.officeA = v.body.office.id;
+      else ids.officeB = v.body.office.id;
+    }
 
     // A's records: a case, a task, an uploaded + approved order (document, review item, order, hearing, client messages).
     ids.caseA = (await http("POST", "/api/cases", { jar: A, json: { number: "O.S. 321/2026", petitioner: "Private Client A", respondent: "Opponent", court: "Mysuru" } })).body.case.id;
@@ -88,13 +131,13 @@ describe.skipIf(!BASE || !DB)("security over HTTP (password mode)", () => {
 
     // A viewer in A's office (provisioned the way an administrator would).
     await createAccount(db, { email: emailV, name: "Viewer", password: PASSWORDS[2], role: "viewer", officeId: ids.officeA });
-    expect((await http("POST", "/api/auth/login", { jar: V, json: { email: emailV, password: PASSWORDS[2] } })).status).toBe(200);
+    expect((await signIn(V, emailV, PASSWORDS[2])).status).toBe(200);
   }, 120_000);
 
   afterAll(async () => {
     if (!db) return;
     await db.office.deleteMany({ where: { id: { in: [ids.officeA, ids.officeB].filter(Boolean) } } });
-    await db.user.deleteMany({ where: { email: { in: [emailA, emailB, emailV] } } });
+    await db.user.deleteMany({ where: { email: { endsWith: `${run}@example.test` } } });
     await db.$disconnect();
   });
 
@@ -209,7 +252,7 @@ describe.skipIf(!BASE || !DB)("security over HTTP (password mode)", () => {
 
   it("session cookies are HttpOnly and SameSite=Lax, and cross-site writes are refused (CSRF)", async () => {
     const j: Jar = { cookie: "" };
-    const r = await http("POST", "/api/auth/login", { jar: j, json: { email: emailB, password: PASSWORDS[1] } });
+    const r = await signIn(j, emailB, PASSWORDS[1]);
     const c = r.headers.getSetCookie().find((x) => x.includes("session_token="))!;
     expect(c).toMatch(/HttpOnly/i);
     expect(c).toMatch(/SameSite=Lax/i);
@@ -218,9 +261,89 @@ describe.skipIf(!BASE || !DB)("security over HTTP (password mode)", () => {
     expectError(await http("PATCH", `/api/cases/${ids.caseB}`, { jar: j, json: { number: "X" }, headers: { "sec-fetch-site": "cross-site" } }), 403, "FORBIDDEN");
   });
 
+  it("two-step login: the password alone gives no session, only a short-lived challenge", async () => {
+    const j: Jar = { cookie: "" };
+    const r = await http("POST", "/api/auth/login", { jar: j, json: { email: emailB, password: PASSWORDS[1] } });
+    expect(r.body).toMatchObject({ status: "code_required", delivery: { channel: "email", to: expect.stringMatching(/^ad.*@example\.test$/) }, expiresInSeconds: 300 });
+    expect(r.body.delivery.to).not.toBe(emailB); // masked
+    expect(r.headers.getSetCookie().some((c) => c.includes("session_token=") && !/Max-Age=0/i.test(c))).toBe(false);
+    const ch = r.headers.getSetCookie().find((c) => c.includes("two_factor="))!;
+    expect(ch).toMatch(/HttpOnly/i);
+    expect(ch).toMatch(/Max-Age=600/);
+    expectError(await http("GET", "/api/auth/me", { jar: j }), 401, "UNAUTHENTICATED");
+    expectError(await http("GET", "/api/export", { jar: j }), 401, "UNAUTHENTICATED");
+  });
+
+  it("two-step login: wrong, malformed and replayed codes fail; five wrong codes end the attempt", async () => {
+    const j: Jar = { cookie: "" };
+    const before = codeCount(emailB);
+    await http("POST", "/api/auth/login", { jar: j, json: { email: emailB, password: PASSWORDS[1] } });
+    const right = await codeFor(emailB, before);
+    const wrong = right === "000000" ? "111111" : "000000";
+    expectError(await http("POST", "/api/auth/verify", { jar: j, json: { code: "12ab" } }), 400, "VALIDATION_ERROR");
+    for (let i = 0; i < 5; i++) expectError(await http("POST", "/api/auth/verify", { jar: j, json: { code: wrong } }), 401, "UNAUTHENTICATED");
+    expectError(await http("POST", "/api/auth/verify", { jar: j, json: { code: right } }), 401, "UNAUTHENTICATED"); // too late now
+    expectError(await http("GET", "/api/auth/me", { jar: j }), 401, "UNAUTHENTICATED");
+    // A code is single-use: after a successful sign-in it cannot be replayed.
+    const k: Jar = { cookie: "" };
+    const b2 = codeCount(emailB);
+    await http("POST", "/api/auth/login", { jar: k, json: { email: emailB, password: PASSWORDS[1] } });
+    const once = await codeFor(emailB, b2);
+    const challengeOnly = k.cookie;
+    expect((await http("POST", "/api/auth/verify", { jar: k, json: { code: once } })).status).toBe(200);
+    expectError(await http("POST", "/api/auth/verify", { jar: { cookie: challengeOnly }, json: { code: once } }), 401, "UNAUTHENTICATED");
+  });
+
+  it("two-step login: no challenge means no sign-in, and one person's code cannot finish another's sign-in", async () => {
+    expectError(await http("POST", "/api/auth/verify", { json: { code: "123456" } }), 401, "UNAUTHENTICATED");
+    const forged: Jar = { cookie: "__Secure-advoflow.two_factor=forged.value" };
+    expectError(await http("POST", "/api/auth/verify", { jar: forged, json: { code: "123456" } }), 401, "UNAUTHENTICATED");
+    const jb: Jar = { cookie: "" };
+    const ja: Jar = { cookie: "" };
+    const nb = codeCount(emailB);
+    const na = codeCount(emailA);
+    await http("POST", "/api/auth/login", { jar: jb, json: { email: emailB, password: PASSWORDS[1] } });
+    await http("POST", "/api/auth/login", { jar: ja, json: { email: emailA, password: PASSWORDS[0] } });
+    const codeB = await codeFor(emailB, nb);
+    const codeA = await codeFor(emailA, na);
+    if (codeA !== codeB) expectError(await http("POST", "/api/auth/verify", { jar: ja, json: { code: codeB } }), 401, "UNAUTHENTICATED");
+    const v = await http("POST", "/api/auth/verify", { jar: ja, json: { code: codeA } });
+    expect(v.body.user.email).toBe(emailA); // A's challenge signs in A, whatever code is tried
+  });
+
+  it("two-step login: a resent code replaces the old one; resending is rate limited", async () => {
+    const j: Jar = { cookie: "" };
+    const n0 = codeCount(emailB);
+    await http("POST", "/api/auth/login", { jar: j, json: { email: emailB, password: PASSWORDS[1] } });
+    const first = await codeFor(emailB, n0);
+    const n1 = codeCount(emailB);
+    expect((await http("POST", "/api/auth/resend-code", { jar: j })).body).toMatchObject({ status: "code_sent" });
+    const second = await codeFor(emailB, n1);
+    if (first !== second) expectError(await http("POST", "/api/auth/verify", { jar: j, json: { code: first } }), 401, "UNAUTHENTICATED");
+    expect((await http("POST", "/api/auth/verify", { jar: j, json: { code: second } })).status).toBe(200);
+    expectError(await http("POST", "/api/auth/resend-code", {}), 401, "UNAUTHENTICATED"); // no challenge
+    let last: Res | null = null;
+    for (let i = 0; i < 4; i++) last = await http("POST", "/api/auth/resend-code", { jar: { cookie: "" } });
+    expectError(last!, 429, "RATE_LIMITED");
+  });
+
+  it("two-step login: an account deactivated between the password and the code does not get in", async () => {
+    const email = `between.${run}@example.test`;
+    await createAccount(db, { email, name: "Between", password: PASSWORDS[2], role: "clerk", officeId: ids.officeA });
+    const j: Jar = { cookie: "" };
+    const n = codeCount(email);
+    expect((await http("POST", "/api/auth/login", { jar: j, json: { email, password: PASSWORDS[2] } })).status).toBe(200);
+    const code = await codeFor(email, n);
+    await db.user.update({ where: { email }, data: { isActive: false } });
+    expectError(await http("POST", "/api/auth/verify", { jar: j, json: { code } }), 401, "UNAUTHENTICATED");
+    expect(await db.session.count({ where: { user: { email } } })).toBe(0);
+    await db.user.delete({ where: { email } });
+  });
+
   it("8. no endpoint ever returns a password, a hash or a session token", async () => {
     const all = seen.join("\n");
     for (const p of PASSWORDS) expect(all).not.toContain(p);
+    for (const c of codesSeen) expect(all).not.toMatch(new RegExp(`(^|[^0-9])${c}([^0-9]|$)`)); // sign-in codes travel by email only
     expect(all).not.toMatch(/\$argon2id\$|passwordHash|"password"\s*:|session_token|"token"\s*:/);
   });
 
@@ -239,7 +362,7 @@ describe.skipIf(!BASE || !DB)("security over HTTP (password mode)", () => {
     expect((await http("GET", "/api/auth/me", { jar: V })).status).toBe(200);
     await db.user.update({ where: { email: emailV }, data: { isActive: false } });
     expectError(await http("GET", "/api/auth/me", { jar: V }), 401, "UNAUTHENTICATED");
-    expectError(await http("POST", "/api/auth/login", { json: { email: emailV, password: PASSWORDS[2] } }), 401, "UNAUTHENTICATED");
+    expectError(await http("POST", "/api/auth/login", { json: { email: emailV, password: PASSWORDS[2] } }), 401, "UNAUTHENTICATED"); // no code is even sent
   });
 
   it("10. the shared judgments corpus stays readable through its own read-only endpoint, separate from office data", async () => {

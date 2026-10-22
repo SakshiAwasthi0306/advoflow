@@ -232,18 +232,20 @@ model Office {
 /// A person who can sign in. Credentials live in Account (provider "credential", Argon2id hash in `password`);
 /// sessions in Session. Managed through Better Auth (src/lib/auth/); never returned with a password field.
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique // normalised: trimmed, lower-case
-  name          String
-  emailVerified Boolean  @default(false)
-  image         String?
-  isActive      Boolean  @default(true) // false = cannot sign in; existing sessions are rejected
-  createdAt     DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime @updatedAt @db.Timestamptz(6)
+  id               String   @id @default(cuid())
+  email            String   @unique // normalised: trimmed, lower-case
+  name             String
+  emailVerified    Boolean  @default(false)
+  image            String?
+  isActive         Boolean  @default(true) // false = cannot sign in; existing sessions are rejected
+  twoFactorEnabled Boolean  @default(true) // two-step login (emailed code) is required for every account
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(6)
 
   memberships Membership[]
   sessions    Session[]
   accounts    Account[]
+  twoFactor   TwoFactor[]
 
   @@schema("app")
 }
@@ -285,6 +287,23 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([providerId, accountId])
+  @@index([userId])
+  @@schema("app")
+}
+
+/// Better Auth two-factor plugin table: authenticator-app (TOTP) secrets and backup codes. Unused while only emailed
+/// codes are enabled; emailed codes themselves are stored hashed in VerificationToken and expire after 5 minutes.
+model TwoFactor {
+  id                      String    @id @default(cuid())
+  userId                  String
+  secret                  String
+  backupCodes             String
+  verified                Boolean?
+  failedVerificationCount Int?
+  lockedUntil             DateTime? @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@schema("app")
 }

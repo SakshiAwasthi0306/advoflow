@@ -111,6 +111,8 @@ Copy `.env.example` to `.env.local` and set only what you need. Every variable i
 | `AUTH_MODE` | `demo` (default) or `password` |
 | `AUTH_SECRET` | Required in password mode. 32+ random characters (signs session cookies) |
 | `ALLOW_REGISTRATION` | `true` opens `POST /api/auth/register` (password mode). Default closed |
+| `RESEND_API_KEY`, `EMAIL_FROM` | Send two-step sign-in codes by email through Resend (password mode) |
+| `EMAIL_DELIVERY` | `resend` or `log` (codes in the server log: development/tests only). Default: `resend` if a key is set, else `log` in development and none in production |
 | `DATABASE_URL` | PostgreSQL URL. Empty = local file store |
 | `DOCUMENT_STORAGE_DIR` | Private folder for uploads (default `.data/uploads`) |
 | `BLOB_READ_WRITE_TOKEN` | Store uploads in a private Vercel Blob store instead of the local folder |
@@ -146,7 +148,7 @@ curl -s localhost:3000/api/health/ready   # confirms the app reaches the databas
 - Without `DATABASE_URL` the app uses the local demo file store in `.data/` instead (not for real data).
 ### Sign-in, accounts and roles
 
-`AUTH_MODE=password` turns on email + password sign-in (Better Auth, Argon2id, database sessions, HttpOnly cookies). It needs `AUTH_SECRET` (32+ random characters) and `DATABASE_URL`. Registration is **closed** unless `ALLOW_REGISTRATION=true`; create accounts with:
+`AUTH_MODE=password` turns on **two-step sign-in**: email + password, then a 6-digit code sent by email (Better Auth, Argon2id, database sessions, HttpOnly cookies). It needs `AUTH_SECRET` (32+ random characters), `DATABASE_URL`, and — to email the codes — `RESEND_API_KEY` + `EMAIL_FROM` (without them, codes go to the server log in development only). Registration is **closed** unless `ALLOW_REGISTRATION=true`; create accounts with:
 
 ```bash
 npm run create-user -- --email you@example.com --name "Your Name" --office-name "Your Chambers" --role owner   # password typed at a hidden prompt

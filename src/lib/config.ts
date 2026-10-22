@@ -20,6 +20,9 @@ export const config = {
   indianKanoonToken: env.indianKanoonToken,
   logLevel: env.logLevel,
   allowRegistration: env.allowRegistration,
+  emailDelivery: env.emailDelivery,
+  resendApiKey: env.resendApiKey,
+  emailFrom: env.emailFrom,
   maxUploadBytes: 15 * 1024 * 1024,
 };
 
@@ -45,6 +48,7 @@ export function integrationStatus() {
           : { live: false, label: "Demo corpus of FICTIONAL authorities" },
     ocr: config.anthropicKey ? { live: true, label: "PDF text layer + Claude vision for scans and photos" } : { live: false, label: "PDF text layer only; scans and photos need an AI key or manual entry" },
     storage: config.blobToken ? { live: true, label: "Vercel Blob (private)" } : { live: false, label: "Local private folder on this server" },
+    email: config.emailDelivery === "resend" ? { live: true, label: "Sign-in codes sent by email (Resend)" } : { live: false, label: config.emailDelivery === "log" ? "Sign-in codes written to the server log (development only)" : "Not configured: sign-in codes cannot be sent" },
     calendar: { live: false, label: "CSV export only; no live calendar sync" },
     messaging: { live: false, label: "WhatsApp hand-off link only; nothing is sent automatically" },
   };

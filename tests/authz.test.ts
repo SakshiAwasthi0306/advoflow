@@ -83,6 +83,25 @@ describe("auth configuration", () => {
   });
 });
 
+describe("sign-in code delivery settings", () => {
+  const base = { AUTH_MODE: "password", AUTH_SECRET: "s".repeat(40), DATABASE_URL: "postgresql://h/db" };
+  it("emails with Resend when configured, logs only in development or when explicitly chosen, and refuses otherwise", () => {
+    expect(parseEnv({ ...base, RESEND_API_KEY: "re_x", EMAIL_FROM: "AdvoFlow <a@b.in>" })).toMatchObject({ emailDelivery: "resend", issues: [] });
+    expect(parseEnv({ ...base, NODE_ENV: "development" })).toMatchObject({ emailDelivery: "log", issues: [] });
+    const prodNoEmail = parseEnv({ ...base, NODE_ENV: "production" });
+    expect(prodNoEmail.emailDelivery).toBe("none");
+    expect(prodNoEmail.issues.map((i) => i.variable)).toEqual(["RESEND_API_KEY"]);
+    expect(parseEnv({ ...base, NODE_ENV: "production", EMAIL_DELIVERY: "log" }).issues.map((i) => i.variable)).toEqual(["EMAIL_DELIVERY"]); // allowed, but flagged
+    expect(parseEnv({ ...base, RESEND_API_KEY: "re_x" }).issues.map((i) => i.variable)).toEqual(["EMAIL_FROM"]);
+    expect(parseEnv({ NODE_ENV: "production" }).issues).toEqual([]); // demo mode sends no codes
+  });
+  it("masks the address shown on the code screen", async () => {
+    const { maskEmail } = await import("@/lib/email");
+    expect(maskEmail("asha.rao@example.com")).toBe("as•••@example.com");
+    expect(maskEmail("ab@x.in")).toBe("ab•@x.in");
+  });
+});
+
 describe("rate limits (no database: in-process counters)", () => {
   it("allows up to the limit, then refuses with a retry time", async () => {
     const who = `user-${Math.random()}`;

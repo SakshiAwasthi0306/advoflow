@@ -23,6 +23,9 @@ const schema = z.object({
   INDIAN_KANOON_API_TOKEN: opt(z.string()),
   LOG_LEVEL: opt(z.enum(["debug", "info", "warn", "error"])),
   ALLOW_REGISTRATION: opt(z.enum(["true", "false"])),
+  EMAIL_DELIVERY: opt(z.enum(["resend", "log"])),
+  RESEND_API_KEY: opt(z.string()),
+  EMAIL_FROM: opt(z.string()),
   VERCEL: opt(z.string()),
 });
 
@@ -46,6 +49,10 @@ export interface Env {
   indianKanoonToken: string;
   logLevel: "debug" | "info" | "warn" | "error";
   allowRegistration: boolean;
+  /** How sign-in codes reach people: "resend" (real email), "log" (server log; development/testing only), "none". */
+  emailDelivery: "resend" | "log" | "none";
+  resendApiKey: string;
+  emailFrom: string;
   onVercel: boolean;
   issues: EnvIssue[];
 }
@@ -73,6 +80,17 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
   if (authMode === "password" && !raw.DATABASE_URL) issues.push({ variable: "DATABASE_URL", message: "is required in password mode (accounts and sessions are stored in PostgreSQL); nobody can sign in until it is set" });
   if (raw.ALLOW_REGISTRATION === "true" && authMode !== "password") issues.push({ variable: "ALLOW_REGISTRATION", message: "only applies in password mode" });
 
+  // Sign-in codes: real email when a Resend key is set; otherwise the server log, but only in development or when
+  // EMAIL_DELIVERY=log is chosen explicitly (e.g. automated tests). In production with neither, nobody can finish signing in.
+  const emailDelivery: Env["emailDelivery"] =
+    raw.EMAIL_DELIVERY ?? (raw.RESEND_API_KEY ? "resend" : raw.NODE_ENV === "production" ? "none" : "log");
+  if (authMode === "password") {
+    if (emailDelivery === "resend" && !raw.RESEND_API_KEY) issues.push({ variable: "RESEND_API_KEY", message: 'is required when EMAIL_DELIVERY is "resend"' });
+    if (emailDelivery === "resend" && !raw.EMAIL_FROM) issues.push({ variable: "EMAIL_FROM", message: 'is required to send sign-in codes, e.g. "AdvoFlow <signin@yourdomain.in>" (a domain verified in Resend)' });
+    if (emailDelivery === "none") issues.push({ variable: "RESEND_API_KEY", message: "is not set, so sign-in codes cannot be emailed and nobody can finish signing in" });
+    if (emailDelivery === "log" && raw.NODE_ENV === "production") issues.push({ variable: "EMAIL_DELIVERY", message: '"log" writes sign-in codes to the server log: for testing only, never for real users' });
+  }
+
   const onVercel = !!raw.VERCEL;
   if (onVercel && !raw.DATABASE_URL) issues.push({ variable: "DATABASE_URL", message: "is required on Vercel: the local file store does not persist on serverless hosting" });
 
@@ -95,6 +113,9 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
     indianKanoonToken: raw.INDIAN_KANOON_API_TOKEN ?? "",
     logLevel: raw.LOG_LEVEL ?? (raw.NODE_ENV === "development" ? "debug" : "info"),
     allowRegistration: raw.ALLOW_REGISTRATION === "true",
+    emailDelivery,
+    resendApiKey: raw.RESEND_API_KEY ?? "",
+    emailFrom: raw.EMAIL_FROM ?? "",
     onVercel,
     issues,
   };
