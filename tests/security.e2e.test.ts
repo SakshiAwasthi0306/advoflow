@@ -96,7 +96,7 @@ describe.skipIf(!BASE || !DB || !LOG)("security over HTTP (password mode)", () =
     // Registration also ends in the code step: the account gets a session only after confirming the emailed code.
     for (const [jar, name, email, pw, office] of [[A, "Advocate A", emailA, PASSWORDS[0], "A Chambers"], [B, "Advocate B", emailB, PASSWORDS[1], "B Chambers"]] as const) {
       const before = codeCount(email);
-      const reg = await http("POST", "/api/auth/register", { jar, json: { name, email, password: pw, officeName: office } });
+      const reg = await http("POST", "/api/auth/register", { jar, json: { name, email, phoneNumber: "9876543210", password: pw, confirmPassword: pw, officeName: office } });
       expect(reg.status).toBe(201);
       expect(reg.body.status).toBe("code_required");
       expectError(await http("GET", "/api/auth/me", { jar }), 401, "UNAUTHENTICATED"); // no session yet
@@ -241,8 +241,8 @@ describe.skipIf(!BASE || !DB || !LOG)("security over HTTP (password mode)", () =
     expect(wrong.body.error).toBe(unknown.body.error);
     expect(wrong.headers.getSetCookie().filter((c) => c.includes("session_token=") && !c.includes("Max-Age=0"))).toEqual([]);
     expectError(await http("POST", "/api/auth/login", { json: { email: "not-an-email", password: "x" } }), 400, "VALIDATION_ERROR");
-    expectError(await http("POST", "/api/auth/register", { json: { name: "Dup", email: emailA.toUpperCase(), password: "another long password" } }), 400, "VALIDATION_ERROR");
-    expectError(await http("POST", "/api/auth/register", { json: { name: "Weak", email: `weak.${run}@example.test`, password: "short" } }), 400, "VALIDATION_ERROR");
+    expectError(await http("POST", "/api/auth/register", { json: { name: "Dup", email: emailA.toUpperCase(), phoneNumber: "9876543210", password: "another long password" } }), 400, "VALIDATION_ERROR");
+    expectError(await http("POST", "/api/auth/register", { json: { name: "Weak", email: `weak.${run}@example.test`, phoneNumber: "9876543210", password: "short" } }), 400, "VALIDATION_ERROR");
     const target = `bruteforce.${run}@example.test`;
     let last: Res | null = null;
     for (let i = 0; i < 9; i++) last = await http("POST", "/api/auth/login", { json: { email: target, password: `guess number ${i}` } });

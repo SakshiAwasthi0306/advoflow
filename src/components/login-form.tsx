@@ -6,31 +6,19 @@ import { api } from "./client";
 
 // Two-step sign-in: email + password, then the 6-digit code sent by email (see docs/security.md).
 
-type Challenge = { to: string; mode: "resend" | "log" | "none"; expiresInSeconds: number };
+export type Challenge = { to: string; mode: "resend" | "log" | "none"; expiresInSeconds: number };
 const RESEND_WAIT = 30;
 
 export function LoginForm() {
   const router = useRouter();
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [wait, setWait] = useState(0);
-  const codeRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (wait <= 0) return;
-    const t = setTimeout(() => setWait((w) => w - 1), 1000);
-    return () => clearTimeout(t);
-  }, [wait]);
-  useEffect(() => {
-    if (challenge) codeRef.current?.focus();
-  }, [challenge]);
 
   async function signIn(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    setBusy(true); setErr(null); setInfo(null);
+    setBusy(true); setErr(null);
     try {
       const r = await api<{ status: string; delivery: { to: string; mode: Challenge["mode"] }; expiresInSeconds: number }>("/api/auth/login", "POST", { email: f.get("email"), password: f.get("password") });
       if (r.status === "signed_in") { // password-only deployment
@@ -39,41 +27,8 @@ export function LoginForm() {
         return;
       }
       setChallenge({ to: r.delivery.to, mode: r.delivery.mode, expiresInSeconds: r.expiresInSeconds });
-      setWait(RESEND_WAIT);
     } catch (ex) {
       setErr((ex as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function verify(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const code = String(new FormData(e.currentTarget).get("code") ?? "").replace(/\D/g, "");
-    setBusy(true); setErr(null); setInfo(null);
-    try {
-      await api("/api/auth/verify", "POST", { code });
-      router.replace("/start"); // profile first until it is set up, then the dashboard
-      router.refresh();
-    } catch (ex) {
-      const msg = (ex as Error).message;
-      setErr(msg);
-      if (/expired\. Enter your email/i.test(msg)) setChallenge(null); // challenge gone: back to step 1
-      if (codeRef.current) { codeRef.current.value = ""; codeRef.current.focus(); }
-      setBusy(false);
-    }
-  }
-
-  async function resend() {
-    setBusy(true); setErr(null); setInfo(null);
-    try {
-      await api("/api/auth/resend-code", "POST", {});
-      setInfo("A new code is on its way. The previous code no longer works.");
-      setWait(RESEND_WAIT);
-    } catch (ex) {
-      const msg = (ex as Error).message;
-      setErr(msg);
-      if (/expired\. Enter your email/i.test(msg)) setChallenge(null);
     } finally {
       setBusy(false);
     }
@@ -88,6 +43,60 @@ export function LoginForm() {
         <button className="btn-primary w-full" disabled={busy}>{busy ? "Checking…" : "Continue"}</button>
       </form>
     );
+  }
+  return (
+    <CodeStep
+      challenge={challenge} submitLabel="Verify and sign in" backLabel="Use a different account"
+      onBack={() => setChallenge(null)}
+      onVerified={() => { router.replace("/start"); router.refresh(); }} // profile first until it is set up, then the dashboard
+    />
+  );
+}
+
+/** Step 2 of sign-in (and of registration): the 6-digit code emailed for the current challenge cookie. */
+export function CodeStep({ challenge, submitLabel, backLabel, onBack, onVerified }: { challenge: Challenge; submitLabel: string; backLabel: string; onBack: () => void; onVerified: () => void }) {
+  const [err, setErr] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [wait, setWait] = useState(RESEND_WAIT);
+  const codeRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (wait <= 0) return;
+    const t = setTimeout(() => setWait((w) => w - 1), 1000);
+    return () => clearTimeout(t);
+  }, [wait]);
+  useEffect(() => codeRef.current?.focus(), []);
+
+  async function verify(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const code = String(new FormData(e.currentTarget).get("code") ?? "").replace(/\D/g, "");
+    setBusy(true); setErr(null); setInfo(null);
+    try {
+      await api("/api/auth/verify", "POST", { code });
+      onVerified();
+    } catch (ex) {
+      const msg = (ex as Error).message;
+      setErr(msg);
+      if (/expired\. Enter your email/i.test(msg)) onBack(); // challenge gone: back to step 1
+      if (codeRef.current) { codeRef.current.value = ""; codeRef.current.focus(); }
+      setBusy(false);
+    }
+  }
+
+  async function resend() {
+    setBusy(true); setErr(null); setInfo(null);
+    try {
+      await api("/api/auth/resend-code", "POST", {});
+      setInfo("A new code is on its way. The previous code no longer works.");
+      setWait(RESEND_WAIT);
+    } catch (ex) {
+      const msg = (ex as Error).message;
+      setErr(msg);
+      if (/expired\. Enter your email/i.test(msg)) onBack();
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -112,10 +121,10 @@ export function LoginForm() {
       </div>
       {err && <p role="alert" className="text-sm text-danger">{err}</p>}
       {info && <p role="status" className="text-sm text-ok">{info}</p>}
-      <button className="btn-primary w-full" disabled={busy}>{busy ? "Verifying…" : "Verify and sign in"}</button>
+      <button className="btn-primary w-full" disabled={busy}>{busy ? "Verifying…" : submitLabel}</button>
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
         <button type="button" className="btn-ghost btn-sm" disabled={busy || wait > 0} onClick={resend}>{wait > 0 ? `Resend code in ${wait}s` : "Resend code"}</button>
-        <button type="button" className="btn-ghost btn-sm" disabled={busy} onClick={() => { setChallenge(null); setErr(null); setInfo(null); }}>Use a different account</button>
+        <button type="button" className="btn-ghost btn-sm" disabled={busy} onClick={onBack}>{backLabel}</button>
       </div>
     </form>
   );

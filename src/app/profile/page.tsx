@@ -13,7 +13,7 @@ import { DeleteAccountForm, EmailChangeForm, PasswordForm, PhoneForm, PhotoForm,
 export const metadata = { title: "Profile" };
 export const dynamic = "force-dynamic";
 
-export default async function Profile() {
+export default async function Profile({ searchParams }: { searchParams: { welcome?: string } }) {
   const session = await getSession();
   if (!session) redirect("/login");
   if (session.mode !== "password") {
@@ -27,15 +27,24 @@ export default async function Profile() {
   const view = await getProfileView(session.userId, await currentSessionToken(headers()));
   const courts = await getPrisma()!.court.findMany({ where: { OR: [{ officeId: null }, { officeId: session.officeId }] }, orderBy: [{ level: "asc" }, { name: "asc" }], select: { id: true, name: true } });
   const p = view.profile;
+  const welcome = searchParams.welcome === "1";
   const verified = (ok: boolean) => (ok ? <Badge tone="ok">Verified</Badge> : <Badge tone="warn">Not verified</Badge>);
 
   return (
     <>
       <PageHeader title="Profile" subtitle={`${view.account.name} · ${view.offices.map((o) => `${o.name} (${o.role})`).join(", ")}`} />
+      {welcome && (
+        <div className="mb-4">
+          <Notice tone="neutral" title="Welcome to AdvoFlow: set up your professional profile">
+            Add your Bar Council enrolment, practice areas and preferred courts. Everything here is optional and can be changed later. <Link className="link" href="/">Skip for now and go to the dashboard</Link>
+          </Notice>
+        </div>
+      )}
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <Card title="Professional details">
             <ProfileDetailsForm
+              afterSave={welcome ? "/" : undefined}
               councils={STATE_BAR_COUNCILS} areas={PRACTICE_AREAS} courts={courts}
               initial={{ name: view.account.name, barEnrolmentNo: p.barEnrolmentNo, stateBarCouncil: p.stateBarCouncil, yearsOfPractice: p.yearsOfPractice, practiceAreas: p.practiceAreas,
                 officeAddressLine1: p.officeAddressLine1, officeAddressLine2: p.officeAddressLine2, officeCity: p.officeCity, officeState: p.officeState, officePincode: p.officePincode,

@@ -24,7 +24,10 @@ export default async function Login({ searchParams }: { searchParams: { notice?:
         <p className="mb-5 text-sm text-muted">{config.twoStepLogin === "required" ? "Sign in to your office. Two steps: your password, then a code we email you." : "Sign in to your office."}</p>
         {searchParams.notice && NOTICES[searchParams.notice] && <p role="status" className="mb-4 rounded-lg border border-line bg-neutral-soft px-3 py-2 text-sm">{NOTICES[searchParams.notice]}</p>}
         <LoginForm />
-        <Link className="link mt-4 block text-center text-sm" href="/forgot-password">Forgot password?</Link>
+        {config.allowRegistration && (
+          <p className="mt-4 text-center text-sm">New to AdvoFlow? <Link className="link font-medium" href="/register">Create account</Link></p>
+        )}
+        <Link className="link mt-3 block text-center text-sm" href="/forgot-password">Forgot password?</Link>
       </div>
     </main>
   );

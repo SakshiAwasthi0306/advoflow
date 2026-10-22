@@ -278,3 +278,76 @@ describe.skipIf(!BASE || !DB || !LOG)("profile and account security over HTTP", 
     expect(all).not.toMatch(/\$argon2id\$|session_token|"token"\s*:|"password"\s*:|photoKey|"secret"/);
   });
 });
+
+describe.skipIf(!BASE || !DB || !LOG)("registration and onboarding over HTTP", () => {
+  let db: PrismaClient;
+  const R: Jar = { cookie: "" };
+  const email = `register.${run}@example.test`;
+  const pw = `R-pass-${run}-new account!`;
+  const mobile = `9${String(Math.floor(Math.random() * 1e9)).padStart(9, "0")}`;
+
+  beforeAll(async () => {
+    db = new PrismaClient({ adapter: new PrismaPg({ connectionString: DB! }) });
+    await db.rateLimit.deleteMany({}); // registration allows 5 attempts per address per hour; this block uses exactly 5
+    secrets.push(pw);
+  });
+  afterAll(async () => {
+    if (!db) return;
+    const users = await db.user.findMany({ where: { email }, select: { id: true, memberships: { select: { officeId: true } } } });
+    await db.office.deleteMany({ where: { id: { in: users.flatMap((u) => u.memberships.map((m) => m.officeId)) } } });
+    await db.user.deleteMany({ where: { id: { in: users.map((u) => u.id) } } });
+    await db.$disconnect();
+  });
+
+  it("the sign-in page links to a real registration page, which links back", async () => {
+    const login = await http("GET", "/login");
+    expect(login.text).toContain('href="/register"');
+    expect(login.text).toContain("Create account");
+    expect(login.text).toContain('href="/forgot-password"');
+    const reg = await http("GET", "/register");
+    expect(reg.status).toBe(200);
+    for (const field of ['name="name"', 'name="email"', 'name="phoneNumber"', 'name="password"', 'name="confirmPassword"', "Back to sign in"]) expect(reg.text).toContain(field);
+  });
+
+  it("validates the form on the server too", async () => {
+    const base = { name: "Reg Test", email, phoneNumber: mobile, password: pw, confirmPassword: pw };
+    expectError(await http("POST", "/api/auth/register", { json: { ...base, phoneNumber: "12345" } }), 400, "VALIDATION_ERROR");
+    expectError(await http("POST", "/api/auth/register", { json: { ...base, confirmPassword: `${pw}x` } }), 400, "VALIDATION_ERROR");
+    expectError(await http("POST", "/api/auth/register", { json: { ...base, emailVerified: true } }), 400, "VALIDATION_ERROR"); // no extra fields
+    expect(await db.user.count({ where: { email } })).toBe(0);
+  });
+
+  it("registers once, confirms by code, verifies the mobile, then onboards through the profile to the dashboard", async () => {
+    const n = logLines("auth.login_code", hash("otp", email)).length;
+    const reg = await http("POST", "/api/auth/register", { jar: R, json: { name: "Reg Test", email, phoneNumber: mobile, password: pw, confirmPassword: pw, officeName: `Reg chambers ${run}` } });
+    expect(reg.status, reg.text.slice(0, 200)).toBe(201);
+    if (reg.body.status === "code_required") {
+      const code = (await fromLog("auth.login_code", hash("otp", email), n)).code as string;
+      secrets.push(code);
+      expect((await http("POST", "/api/auth/verify", { jar: R, json: { code } })).status).toBe(200);
+    }
+    // The mobile is not saved by registration; only by its SMS code.
+    expect((await db.user.findUniqueOrThrow({ where: { email } })).phoneNumber).toBeNull();
+    const start = await http("GET", "/start", { jar: R });
+    expect(start.headers.get("location")).toContain("/profile?welcome=1");
+    const phone = `+91${mobile}`;
+    const k = logLines("sms.code", hash("sms", phone)).length;
+    expect((await http("POST", "/api/profile/phone/send-code", { jar: R, json: { phoneNumber: mobile } })).status).toBe(200);
+    const sms = (await fromLog("sms.code", hash("sms", phone), k)).code as string;
+    secrets.push(sms);
+    expect((await http("POST", "/api/profile/phone/verify", { jar: R, json: { phoneNumber: mobile, code: sms } })).status).toBe(200);
+    expect(await db.user.findUniqueOrThrow({ where: { email } })).toMatchObject({ phoneNumber: phone, phoneNumberVerified: true });
+    expect((await http("PATCH", "/api/profile", { jar: R, json: { stateBarCouncil: "Bar Council of Delhi", practiceAreas: ["Criminal"] } })).status).toBe(200);
+    expect((await http("GET", "/start", { jar: R })).headers.get("location")).toMatch(/\/$/);
+  });
+
+  it("a retried registration creates no second account, and the new account signs in again", async () => {
+    expectError(await http("POST", "/api/auth/register", { json: { name: "Reg Again", email: email.toUpperCase(), phoneNumber: mobile, password: pw, confirmPassword: pw } }), 400, "VALIDATION_ERROR");
+    expect(await db.user.count({ where: { email } })).toBe(1);
+    expect(await db.office.count({ where: { name: `Reg chambers ${run}` } })).toBe(1);
+    await http("POST", "/api/auth/logout", { jar: R });
+    const again: Jar = { cookie: "" };
+    expect((await signIn(again, email, pw)).status).toBe(200);
+    expect((await http("GET", "/start", { jar: again })).headers.get("location")).toMatch(/\/$/); // profile created: dashboard
+  });
+});

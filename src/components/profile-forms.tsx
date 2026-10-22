@@ -28,7 +28,7 @@ export interface ProfileFormValues {
 
 type TextKey = "barEnrolmentNo" | "officeAddressLine1" | "officeAddressLine2" | "officeCity" | "officeState" | "officePincode";
 
-export function ProfileDetailsForm({ initial, councils, areas, courts }: { initial: ProfileFormValues; councils: readonly string[]; areas: readonly string[]; courts: { id: string; name: string }[] }) {
+export function ProfileDetailsForm({ initial, councils, areas, courts, afterSave }: { initial: ProfileFormValues; councils: readonly string[]; areas: readonly string[]; courts: { id: string; name: string }[]; afterSave?: string }) {
   const router = useRouter();
   const [v, setV] = useState(initial);
   const [cleared, setCleared] = useState<Set<string>>(new Set());
@@ -61,12 +61,16 @@ export function ProfileDetailsForm({ initial, councils, areas, courts }: { initi
     for (const k of ["practiceAreas", "preferredCourtIds", "preferredCourtLocations"] as const) {
       if (JSON.stringify(v[k]) !== JSON.stringify(initial[k])) patch[k] = v[k];
     }
-    if (!Object.keys(patch).length) { setStatus({ tone: "ok", text: "Nothing to save: no changes." }); return; }
+    if (!Object.keys(patch).length) {
+      if (afterSave) { router.replace(afterSave); return; } // onboarding: nothing entered, carry on
+      setStatus({ tone: "ok", text: "Nothing to save: no changes." }); return;
+    }
     setBusy(true); setStatus(null);
     try {
       await api("/api/profile", "PATCH", patch);
       setStatus({ tone: "ok", text: "Profile saved." });
       setCleared(new Set());
+      if (afterSave) { router.replace(afterSave); router.refresh(); return; }
       router.refresh();
     } catch (ex) {
       setStatus({ tone: "danger", text: `Not saved: ${(ex as Error).message}` });
@@ -147,7 +151,7 @@ export function ProfileDetailsForm({ initial, councils, areas, courts }: { initi
         </div>
       </fieldset>
 
-      <div className="flex items-center gap-3"><button className="btn-primary" disabled={busy}>{busy ? "Saving…" : "Save profile"}</button><span className="hint">Blank fields keep their saved value. Use “Clear” to remove one.</span></div>
+      <div className="flex items-center gap-3"><button className="btn-primary" disabled={busy}>{busy ? "Saving…" : afterSave ? "Save and continue" : "Save profile"}</button><span className="hint">Blank fields keep their saved value. Use “Clear” to remove one.</span></div>
       <StatusLine s={status} />
     </form>
   );
