@@ -95,6 +95,13 @@ describe("sign-in code delivery settings", () => {
     expect(parseEnv({ ...base, RESEND_API_KEY: "re_x" }).issues.map((i) => i.variable)).toEqual(["EMAIL_FROM"]);
     expect(parseEnv({ NODE_ENV: "production" }).issues).toEqual([]); // demo mode sends no codes
   });
+  it("two-step login is required by default; TWO_STEP_LOGIN=off makes it password-only and drops the email requirement", () => {
+    expect(parseEnv(base).twoStepLogin).toBe("required");
+    const off = parseEnv({ ...base, NODE_ENV: "production", TWO_STEP_LOGIN: "off" });
+    expect(off).toMatchObject({ twoStepLogin: "off", issues: [] });
+    expect(parseEnv({ ...base, TWO_STEP_LOGIN: "maybe" }).issues.map((i) => i.variable)).toEqual(["TWO_STEP_LOGIN"]);
+    expect(parseEnv({ ...base, TWO_STEP_LOGIN: "maybe" }).twoStepLogin).toBe("required"); // invalid value: stays strict
+  });
   it("masks the address shown on the code screen", async () => {
     const { maskEmail } = await import("@/lib/email");
     expect(maskEmail("asha.rao@example.com")).toBe("as•••@example.com");

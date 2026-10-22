@@ -112,6 +112,7 @@ Copy `.env.example` to `.env.local` and set only what you need. Every variable i
 | `AUTH_SECRET` | Required in password mode. 32+ random characters (signs session cookies) |
 | `ALLOW_REGISTRATION` | `true` opens `POST /api/auth/register` (password mode). Default closed |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Send two-step sign-in codes by email through Resend (password mode) |
+| `TWO_STEP_LOGIN` | `required` (default): password, then an emailed code. `off`: password only (no email needed; weaker) |
 | `EMAIL_DELIVERY` | `resend` or `log` (codes in the server log: development/tests only). Default: `resend` if a key is set, else `log` in development and none in production |
 | `DATABASE_URL` | PostgreSQL URL. Empty = local file store |
 | `DOCUMENT_STORAGE_DIR` | Private folder for uploads (default `.data/uploads`) |

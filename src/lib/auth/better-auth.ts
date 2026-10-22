@@ -42,8 +42,9 @@ function createAuth(prisma: PrismaClient) {
     },
     // Two-step login: after the password, Better Auth issues no session, only a signed short-lived challenge cookie;
     // a 6-digit code is emailed (stored hashed, 5 minutes, 5 attempts) and the session is created once it is verified.
-    // Every account has twoFactorEnabled = true (schema default), so the step cannot be skipped.
-    plugins: [
+    // Every account has twoFactorEnabled = true (schema default), so the step cannot be skipped — unless the whole
+    // deployment opts out with TWO_STEP_LOGIN=off (password only; reported as "not live" in Settings).
+    plugins: config.twoStepLogin === "off" ? [] : [
       twoFactor({
         issuer: "AdvoFlow",
         totpOptions: { disable: true }, // authenticator apps: not offered yet

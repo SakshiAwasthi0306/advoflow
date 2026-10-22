@@ -40,7 +40,18 @@ export async function startSignIn(email: string, password: string, headers: Head
     }
     throw e;
   }
-  const res = r.response as { twoFactorRedirect?: boolean; token?: string | null };
+  const res = r.response as { twoFactorRedirect?: boolean; token?: string | null; user?: { id: string } };
+  if (config.twoStepLogin === "off" && !res.twoFactorRedirect && res.token && res.user) {
+    // Password-only deployment (TWO_STEP_LOGIN=off): Better Auth already created the session.
+    const acc = await usableAccount({ id: res.user.id });
+    if (!acc) {
+      await getPrisma()!.session.deleteMany({ where: { token: res.token } });
+      logger.warn("auth.login_refused", { who: limitKey("login-email", email) });
+      throw new UnauthenticatedError(GENERIC_LOGIN_ERROR);
+    }
+    logger.info("auth.login", { userId: acc.user.id, officeId: acc.membership.officeId, twoStep: "off" });
+    return jsonWithCookies({ status: "signed_in", user: publicUser(acc.user), office: { id: acc.membership.office.id, name: acc.membership.office.name, role: acc.membership.role.toLowerCase() } }, r.headers, status);
+  }
   if (!res.twoFactorRedirect) {
     // Two-step login switched off for this account (should never happen): refuse rather than skip the code.
     if (res.token) await getPrisma()!.session.deleteMany({ where: { token: res.token } });

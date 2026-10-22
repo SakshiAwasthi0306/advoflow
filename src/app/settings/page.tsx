@@ -10,7 +10,7 @@ export const metadata = { title: "Settings" };
 export default async function Settings() {
   const { ws, session } = await pageData();
   const st = integrationStatus();
-  const rows: [string, { live: boolean; label: string }][] = [["AI extraction & research", st.ai], ["Database", st.database], ["Sign-in", st.auth], ["Legal research source", st.research], ["OCR", st.ocr], ["Document storage", st.storage], ...(config.authMode === "password" ? [["Sign-in codes (email)", st.email] as [string, { live: boolean; label: string }]] : []), ["Calendar", st.calendar], ["Client messaging", st.messaging]];
+  const rows: [string, { live: boolean; label: string }][] = [["AI extraction & research", st.ai], ["Database", st.database], ["Sign-in", st.auth], ["Legal research source", st.research], ["OCR", st.ocr], ["Document storage", st.storage], ...(config.authMode === "password" ? [["Two-step login", st.twoStep] as [string, { live: boolean; label: string }], ...(config.twoStepLogin === "required" ? [["Sign-in codes (email)", st.email] as [string, { live: boolean; label: string }]] : [])] : []), ["Calendar", st.calendar], ["Client messaging", st.messaging]];
   return (
     <>
       <PageHeader title="Settings" subtitle={`${ws.office.name} · signed in as ${session.name} (${session.role})`} actions={session.mode === "password" ? <LogoutButton /> : null} />

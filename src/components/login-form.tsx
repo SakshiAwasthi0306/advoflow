@@ -33,6 +33,11 @@ export function LoginForm() {
     setBusy(true); setErr(null); setInfo(null);
     try {
       const r = await api<{ status: string; delivery: { to: string; mode: Challenge["mode"] }; expiresInSeconds: number }>("/api/auth/login", "POST", { email: f.get("email"), password: f.get("password") });
+      if (r.status === "signed_in") { // password-only deployment
+        router.replace("/");
+        router.refresh();
+        return;
+      }
       setChallenge({ to: r.delivery.to, mode: r.delivery.mode, expiresInSeconds: r.expiresInSeconds });
       setWait(RESEND_WAIT);
     } catch (ex) {
@@ -81,7 +86,6 @@ export function LoginForm() {
         <div><label className="label" htmlFor="password">Password</label><input id="password" name="password" type="password" autoComplete="current-password" required className="input" /></div>
         {err && <p role="alert" className="text-sm text-danger">{err}</p>}
         <button className="btn-primary w-full" disabled={busy}>{busy ? "Checking…" : "Continue"}</button>
-        <p className="hint">Next, we will email you a 6-digit code.</p>
       </form>
     );
   }
