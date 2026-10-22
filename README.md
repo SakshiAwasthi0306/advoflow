@@ -8,6 +8,8 @@ AdvoFlow grew out of the single-page *Case Diary* prototype. It keeps that proto
 
 **Live demo:** https://advoflow-phi.vercel.app (open demo office, fictional data — anyone with the link can edit it; do not upload real client documents).
 
+**Coming from the Case Diary?** The original single-page prototype is kept unchanged in [`legacy/`](legacy/). [docs/case-diary-migration.md](docs/case-diary-migration.md) maps each of its features to AdvoFlow, lists what it could not do, and explains the decisions. Your old diary data can be brought in from **Settings → Import from Case Diary**.
+
 > **Status: prototype.** It runs fully without any API keys in **demo mode**. Demo legal authorities are **fictional** and clearly labelled. Nothing in this repository is legal advice.
 
 ---

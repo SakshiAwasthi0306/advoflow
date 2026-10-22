@@ -3,22 +3,85 @@
 @tailwind utilities;
 
 @layer base {
+  /* Theme tokens (R G B). Dark values follow the system setting, as the original Case Diary did. */
+  :root {
+    color-scheme: light;
+    --c-navy-950: 11 23 48;
+    --c-navy-900: 18 35 74;
+    --c-navy-800: 26 49 102;
+    --c-navy-700: 36 64 127;
+    --c-navy-100: 231 236 246;
+    --c-navy-50: 243 246 251;
+    --c-paper: 246 245 241;
+    --c-surface: 255 255 255;
+    --c-sidebar: 18 35 74;
+    --c-ink: 27 35 51;
+    --c-muted: 94 102 118;
+    --c-line: 227 224 215;
+    --c-danger: 180 35 24;
+    --c-danger-soft: 254 240 238;
+    --c-danger-line: 246 201 195;
+    --c-warn: 154 74 6;
+    --c-warn-soft: 255 245 227;
+    --c-warn-line: 245 217 168;
+    --c-ok: 6 118 71;
+    --c-ok-soft: 235 248 241;
+    --c-ok-line: 181 227 203;
+    --c-neutral: 71 84 103;
+    --c-neutral-soft: 242 244 247;
+    --c-neutral-line: 217 222 229;
+    --c-demo: 107 63 160;
+    --c-demo-soft: 244 239 251;
+    --c-demo-line: 220 205 240;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --c-navy-950: 5 8 15;
+      --c-navy-900: 143 180 232;
+      --c-navy-800: 169 198 239;
+      --c-navy-700: 111 149 207;
+      --c-navy-100: 42 58 85;
+      --c-navy-50: 33 43 59;
+      --c-paper: 20 23 29;
+      --c-surface: 29 34 43;
+      --c-sidebar: 15 22 38;
+      --c-ink: 232 234 240;
+      --c-muted: 154 163 181;
+      --c-line: 44 51 64;
+      --c-danger: 240 154 154;
+      --c-danger-soft: 61 35 35;
+      --c-danger-line: 107 52 52;
+      --c-warn: 232 160 104;
+      --c-warn-soft: 58 42 28;
+      --c-warn-line: 106 74 44;
+      --c-ok: 127 209 161;
+      --c-ok-soft: 31 54 41;
+      --c-ok-line: 47 90 65;
+      --c-neutral: 179 188 203;
+      --c-neutral-soft: 38 44 55;
+      --c-neutral-line: 58 66 80;
+      --c-demo: 196 166 238;
+      --c-demo-soft: 46 36 64;
+      --c-demo-line: 76 59 107;
+    }
+  }
   html { -webkit-text-size-adjust: 100%; }
   body { @apply bg-paper text-ink antialiased; font-size: 15px; line-height: 1.5; }
   h1, h2, h3 { @apply text-ink; }
-  :focus-visible { outline: 2px solid #24407F; outline-offset: 2px; border-radius: 6px; }
-  ::selection { background: #E7ECF6; }
+  :focus-visible { outline: 2px solid rgb(var(--c-navy-700)); outline-offset: 2px; border-radius: 6px; }
+  ::selection { background: rgb(var(--c-navy-100)); }
 }
 
 @layer components {
-  .card { @apply rounded-xl border border-line bg-white shadow-card; }
+  .card { @apply rounded-xl border border-line bg-surface shadow-card; }
   .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50; }
-  .btn-primary { @apply btn border-navy-900 bg-navy-900 text-white hover:bg-navy-800; }
-  .btn-secondary { @apply btn border-line bg-white text-ink hover:bg-navy-50; }
+  .btn-primary { @apply btn border-navy-900 bg-navy-900 text-surface hover:bg-navy-800; }
+  .btn-secondary { @apply btn border-line bg-surface text-ink hover:bg-navy-50; }
   .btn-ghost { @apply btn border-transparent bg-transparent text-navy-800 hover:bg-navy-50; }
-  .btn-danger { @apply btn border-danger bg-white text-danger hover:bg-danger-soft; }
+  .btn-danger { @apply btn border-danger bg-surface text-danger hover:bg-danger-soft; }
   .btn-sm { @apply px-2.5 py-1 text-[13px]; }
-  .input { @apply w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink placeholder:text-muted/70 focus:border-navy-700 focus:outline-none focus:ring-2 focus:ring-navy-100; }
+  .input { @apply w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted/70 focus:border-navy-700 focus:outline-none focus:ring-2 focus:ring-navy-100; }
   .label { @apply mb-1 block text-[13px] font-medium text-ink; }
   .hint { @apply mt-1 text-xs text-muted; }
   .th { @apply px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted; }
@@ -28,6 +91,7 @@
 
 @media print {
   .no-print { display: none !important; }
-  body { background: white; }
+  :root { color-scheme: light; }
+  body { background: white; color: black; }
   .card { box-shadow: none; }
 }

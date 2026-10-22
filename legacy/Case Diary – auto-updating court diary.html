@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Case Diary – auto-updating court diary</title>
+<style>
+:root{--bg:#f6f4ef;--card:#fff;--ink:#1d2433;--mut:#6a7285;--line:#e3dfd5;--acc:#1f3a5f;--accb:#e8eef7;--warn:#b4561b;--warnb:#fbeede;--bad:#a52a2a;--badb:#fbe5e5;--ok:#1f6b45;--okb:#e2f3e9;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171d;--card:#1d222b;--ink:#e8eaf0;--mut:#9aa3b5;--line:#2c3340;--acc:#8fb4e8;--accb:#222d3f;--warn:#e8a068;--warnb:#3a2a1c;--bad:#f09a9a;--badb:#3d2323;--ok:#7fd1a1;--okb:#1f3629;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#14171d;--card:#1d222b;--ink:#e8eaf0;--mut:#9aa3b5;--line:#2c3340;--acc:#8fb4e8;--accb:#222d3f;--warn:#e8a068;--warnb:#3a2a1c;--bad:#f09a9a;--badb:#3d2323;--ok:#7fd1a1;--okb:#1f3629;color-scheme:dark}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:20px 16px 8px;max-width:1100px;margin:auto}
+h1{font:600 22px Georgia,serif;margin:0}h2{font:600 16px Georgia,serif;margin:0 0 10px}
+.sub{color:var(--mut);margin:2px 0 0}
+main{max-width:1100px;margin:auto;padding:8px 16px 40px;display:grid;gap:16px;grid-template-columns:1fr}
+@media(min-width:900px){main{grid-template-columns:1fr 1fr}.full{grid-column:1/-1}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
+textarea,input,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+textarea{min-height:120px;resize:vertical}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:7px 12px}
+button.p{background:var(--acc);color:var(--bg);border-color:var(--acc);font-weight:600}
+button:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;background:var(--accb);color:var(--acc)}
+.tag.w{background:var(--warnb);color:var(--warn)}.tag.b{background:var(--badb);color:var(--bad)}.tag.o{background:var(--okb);color:var(--ok)}
+.task{display:flex;gap:10px;padding:9px 0;border-top:1px solid var(--line)}.task:first-child{border-top:0}
+.task input{width:auto;margin-top:4px}.task.done .t{text-decoration:line-through;color:var(--mut)}
+.m{color:var(--mut);font-size:13px}
+.case{border-top:1px solid var(--line);padding:10px 0}.case:first-child{border-top:0}
+.case summary{cursor:pointer;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.msg{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:6px 0;white-space:pre-wrap}
+.hist{margin:6px 0 0;padding-left:18px}
+#status{margin-top:8px;min-height:20px}.err{color:var(--bad)}
+.note{background:var(--warnb);color:var(--warn);border-radius:8px;padding:8px 10px;font-size:13px;margin-top:10px}
+.scroll{overflow-x:auto}
+</style></head><body>
+<header><h1>Case Diary</h1>
+<p class="sub">Upload a day’s court orders. AI reads each one, updates the case history and builds your to-do list.</p></header>
+<main>
+<section class="card full" id="up">
+<h2>1 · Add today’s orders</h2>
+<div class="row" style="margin-top:0"><input id="num" placeholder="Case number (optional, e.g. O.S. 1234/2025)" style="flex:1;min-width:200px"><input id="court" placeholder="Court (optional)" style="flex:1;min-width:200px"></div>
+<textarea id="txt" placeholder="Paste the order text here (English / Kannada), or attach photos of orders or .txt files below…" style="margin-top:8px"></textarea>
+<div class="row"><input type="file" id="files" accept="image/*,.txt" multiple style="flex:1;min-width:200px">
+<button class="p" id="go">Read orders &amp; update diary</button><button id="demo">Try a sample order</button></div>
+<div id="status" class="m"></div><div id="stat" class="m"></div>
+<div class="note">eCourts pages sit behind a CAPTCHA, so this prototype reads orders you upload instead of fetching them. Automatic eCourts sync is the next step.</div>
+</section>
+<section class="card full" id="alert" hidden></section>
+<section class="card"><h2>2 · To-do list</h2><div id="todo"></div><div class="row"><button id="ics">Export to calendar (CSV)</button></div></section>
+<section class="card"><h2>Upcoming hearings</h2><div id="next" class="scroll"></div></section>
+<section class="card full"><h2>3 · Cases, history &amp; client updates</h2><div id="cases"></div>
+<div class="row"><button id="clr">Clear all data</button></div></section>
+</main>
+<script>
+const KEY="case-diary-v1";
+let S={cases:{}};
+try{const r=localStorage.getItem(KEY);if(r)S=JSON.parse(r)||{cases:{}}}catch(e){}
+const $=id=>document.getElementById(id);
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const today=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
+const norm=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+const fmt=d=>{if(!d)return"–";const x=new Date(d+"T00:00:00");return isNaN(x)?d:x.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})};
+const days=d=>Math.round((new Date(d+"T00:00:00")-new Date(today()+"T00:00:00"))/864e5);
+function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
+function dueTag(d){if(!d)return null;const n=days(d);if(isNaN(n))return null;
+ return el("span","tag "+(n<0?"b":n<=3?"w":""),n<0?"overdue · "+fmt(d):n===0?"today":n<=3?"in "+n+" d · "+fmt(d):fmt(d))}
+
+function render(){
+ const cs=Object.values(S.cases);
+ $("stat").textContent=(S.stats&&S.stats.orders)?S.stats.orders+" orders read · about "+S.stats.orders*10+" minutes of manual diary work saved (assuming 10 min per order)":"";
+ const A=$("alert");A.textContent="";const L2=[];
+ cs.forEach(c=>{
+  c.tasks.filter(k=>!k.done&&k.due&&days(k.due)<=3).forEach(k=>{const n=days(k.due);L2.push({n,b:n<0,t:(n<0?"OVERDUE: ":n===0?"Due today: ":"Due in "+n+" d: ")+k.text+" ("+c.number+")"})});
+  if(c.nextDate&&days(c.nextDate)===1)L2.push({n:1,b:false,t:"Hearing tomorrow: "+c.number+" – "+(c.stage||"")});
+  const lh=c.hearings[c.hearings.length-1];if(lh&&lh.changed)L2.push({n:2,b:false,t:"Date changed: "+c.number+" moved from "+fmt(lh.changed.from)+" to "+fmt(lh.changed.to)});
+ });
+ A.hidden=!L2.length;
+ if(L2.length){A.append(el("h2",null,"Needs attention"));
+  L2.sort((a,b)=>a.n-b.n).forEach(x=>{const p=el("div",null);p.style.margin="4px 0";p.append(el("span","tag "+(x.b?"b":"w"),x.t));A.append(p)});
+  A.append(el("div","m","A missed filing can mean costs or dismissal for default."))}
+ const t=$("todo");t.textContent="";
+ const tasks=[];cs.forEach(c=>c.tasks.forEach(k=>tasks.push({c,k})));
+ tasks.sort((a,b)=>(a.k.done-b.k.done)||String(a.k.due||"9").localeCompare(String(b.k.due||"9")));
+ if(!tasks.length)t.append(el("p","m","No tasks yet. Add an order above."));
+ tasks.forEach(({c,k})=>{
+  const r=el("div","task"+(k.done?" done":""));
+  const cb=document.createElement("input");cb.type="checkbox";cb.checked=!!k.done;
+  cb.onchange=()=>{k.done=cb.checked;save();render()};
+  const b=el("div");b.append(el("div","t",k.text));
+  const m=el("div","m",c.number+" · ");const dt=k.done?null:dueTag(k.due);
+  if(dt)m.append(dt);else if(k.due)m.append(fmt(k.due));
+  if(k.priority==="high"&&!k.done)m.append(" ",el("span","tag b","high"));
+  b.append(m);r.append(cb,b);t.append(r)});
+ const n=$("next");n.textContent="";
+ const up=cs.filter(c=>c.nextDate).sort((a,b)=>a.nextDate.localeCompare(b.nextDate));
+ if(!up.length)n.append(el("p","m","No hearing dates yet."));
+ else{const tb=el("table");tb.style.cssText="width:100%;border-collapse:collapse";
+  up.forEach(c=>{const tr=el("tr");[c.number,c.stage||"–"].forEach(x=>{const td=el("td",null,x);td.style.cssText="padding:6px 8px 6px 0;border-top:1px solid var(--line)";tr.append(td)});
+   const td=el("td");td.style.cssText="padding:6px 0;border-top:1px solid var(--line);white-space:nowrap";td.append(dueTag(c.nextDate)||fmt(c.nextDate));tr.append(td);tb.append(tr)});n.append(tb)}
+ const L=$("cases");L.textContent="";
+ if(!cs.length)L.append(el("p","m","Cases appear here with their full hearing history."));
+ cs.forEach(c=>{
+  const d=el("details","case");const s=el("summary");
+  s.append(el("strong",null,c.number),el("span","m",c.title||""));
+  const adj=c.hearings.filter(h=>h.adjourned).length;
+  if(adj)s.append(el("span","tag "+(adj>=3?"b":"w"),adj+" adjournment"+(adj>1?"s":"")));
+  if(c.nextDate)s.append(el("span","tag","next: "+fmt(c.nextDate)));
+  d.append(s);
+  if(c.court)d.append(el("div","m",c.court));
+  const ul=el("ul","hist");
+  c.hearings.slice().reverse().forEach(h=>{
+   const li=el("li",null,fmt(h.orderDate)+" – "+h.summary+(h.costs?" Costs: "+h.costs+".":"")+(h.nextDate?" Next: "+fmt(h.nextDate)+".":"")+" ");
+   if(h.changed)li.append(el("span","tag w","date changed from "+fmt(h.changed.from))," ");
+   li.append(el("span","tag "+(h.verified?"o":""),h.verified?"verified":"unverified"));
+   const vb=el("button",null,"Verify");vb.style.cssText="margin-left:6px;padding:2px 8px";
+   const pn=el("div","msg");pn.hidden=true;vb.onclick=()=>{pn.hidden=!pn.hidden};
+   pn.append(el("div","m","Original order"),el("div",null,h.source||"(no text kept)"));
+   const di=document.createElement("input");di.type="date";di.value=h.nextDate||"";di.style.cssText="width:auto;margin:6px 6px 0 0";
+   const ok=el("button","p","Confirm date");
+   ok.onclick=()=>{h.nextDate=di.value||null;h.verified=true;if(h===c.hearings[c.hearings.length-1])c.nextDate=h.nextDate;save();render()};
+   pn.append(di,ok);li.append(vb,pn);ul.append(li)});
+  d.append(ul);
+  const u=c.updates[c.updates.length-1];
+  if(u){d.append(el("div","m","Latest client update (draft)"));
+   [["English",u.en],["ಕನ್ನಡ",u.kn]].forEach(([l,x])=>{if(!x)return;const m=el("div","msg",x);const b=el("button",null,"Copy "+l);b.style.marginBottom="6px";
+    b.onclick=()=>{try{navigator.clipboard.writeText(x);b.textContent="Copied"}catch(e){b.textContent="Select & copy"}};const w=el("button",null,"WhatsApp");w.style.cssText="margin:0 0 6px 6px";w.onclick=()=>{try{window.open("https://wa.me/?text="+encodeURIComponent(x),"_blank")}catch(e){}};d.append(m,b,w)})}
+  L.append(d)});
+}
+
+async function readFile(f){
+ if(f.type.startsWith("image/"))return{img:f};
+ if(f.name.toLowerCase().endsWith(".txt"))return{text:await f.text()};
+ throw new Error("Unsupported file: "+f.name+" (use images or .txt)");
+}
+function context(){return Object.values(S.cases).map(c=>({number:c.number,hearings:c.hearings.length,adjournments:c.hearings.filter(h=>h.adjourned).length,openTasks:c.tasks.filter(k=>!k.done).map(k=>({text:k.text,due:k.due})),lastStage:c.stage}))}
+function prompt(text,hint){return `You are a case-diary assistant for a junior advocate in Karnataka, India. Today is ${today()}.
+Read the court order below (it may be scanned, in Kannada/English, with shorthand). Extract facts ONLY from the order; use null if absent. Do not invent dates.
+Existing cases in this office's diary: ${JSON.stringify(context())}
+User hint: ${JSON.stringify(hint)}
+Reply with ONLY JSON, no markdown:
+{"case_number":string (match an existing case number if the same case),"title":string (parties),"court":string|null,"order_date":"YYYY-MM-DD"|null,"next_date":"YYYY-MM-DD"|null,"stage":string (e.g. "Written statement", "Evidence"),"summary":string (1–2 plain sentences of what happened),"adjourned":boolean,"costs":string|null,"tasks":[{"text":string,"due":"YYYY-MM-DD"|null,"priority":"high"|"normal"}] (what must be filed/done before the next date; include a "Update client" task),"client_update_en":string (short, friendly, no jargon),"client_update_kn":string (same message in Kannada)}
+If prior history shows this is the Nth adjournment, mention that in the summary.
+ORDER TEXT:
+${text||"(see attached image)"}`}
+
+async function run(){
+ const btn=$("go"),st=$("status");st.className="m";
+ const sample=await claude.use("sample");
+ if(!sample){st.className="err";st.textContent="AI reading isn’t available here. Open this page in claude.ai while signed in.";return}
+ const items=[];
+ try{
+  const t=$("txt").value.trim();if(t)items.push({text:t});
+  for(const f of $("files").files)items.push(await readFile(f));
+ }catch(e){st.className="err";st.textContent=e.message;return}
+ if(!items.length){st.className="err";st.textContent="Paste an order or attach a file first.";return}
+ btn.disabled=true;let ok=0;
+ for(let i=0;i<items.length;i++){
+  st.textContent="Reading order "+(i+1)+" of "+items.length+"…";
+  try{
+   const it=items[i];const opts={modelTier:"default"};
+   if(it.img){const lim=await sample.limits();if(!lim.images)throw new Error("Image reading isn’t enabled; paste the text instead.");opts.images=[it.img]}
+   const r=await sample.json(prompt(it.text,{caseNumber:$("num").value,court:$("court").value}),opts);
+   merge(r,it.text||("(image: "+((it.img&&it.img.name)||"photo")+") – original image not stored"));ok++;
+  }catch(e){st.className="err";st.textContent="Could not read order "+(i+1)+": "+(e.message||e.code||e);btn.disabled=false;render();return}
+ }
+ $("txt").value="";$("files").value="";st.textContent="Done: "+ok+" order"+(ok>1?"s":"")+" added.";btn.disabled=false;render();
+}
+function merge(r,src){
+ const num=String(r.case_number||$("num").value||"Unknown case").trim();
+ let c=S.cases[norm(num)];
+ if(!c)c=S.cases[norm(num)]={number:num,title:"",court:"",hearings:[],tasks:[],updates:[],nextDate:null,stage:""};
+ if(r.title)c.title=r.title;if(r.court||$("court").value)c.court=r.court||$("court").value;
+ const od=r.order_date||today();
+ const chg=(c.nextDate&&r.next_date&&c.nextDate!==r.next_date&&od<c.nextDate)?{from:c.nextDate,to:r.next_date}:null;
+ if(chg)c.tasks.forEach(k=>{if(!k.done&&k.due===chg.from)k.due=chg.to});
+ S.stats=S.stats||{orders:0};S.stats.orders++;
+ c.hearings.push({orderDate:od,nextDate:r.next_date||null,stage:r.stage||"",summary:r.summary||"Order recorded.",adjourned:!!r.adjourned,costs:r.costs||null,changed:chg,source:String(src||"").slice(0,3000),verified:false});
+ if(r.next_date)c.nextDate=r.next_date;if(r.stage)c.stage=r.stage;
+ (r.tasks||[]).forEach(k=>c.tasks.push({id:Math.random().toString(36).slice(2),text:k.text,due:k.due||null,priority:k.priority||"normal",done:false}));
+ c.updates.push({en:r.client_update_en||"",kn:r.client_update_kn||"",date:today()});
+ save();
+}
+$("go").onclick=run;
+$("demo").onclick=()=>{$("num").value="O.S. 482/2025";$("court").value="Principal Civil Judge, Bengaluru";
+ $("txt").value=`IN THE COURT OF THE PRINCIPAL CIVIL JUDGE, BENGALURU\nO.S. No. 482/2025  Ramesh v. Suresh\nDate: ${today()}\nPlaintiff's counsel present. Defendant absent, sought time to file written statement. Time granted for the last time subject to costs of Rs. 500 payable to the plaintiff. Written statement to be filed on or before the next date. Adjourned to ${new Date(Date.now()+14*864e5).toISOString().slice(0,10)} for WS.`};
+$("clr").onclick=()=>{if(confirm("Delete all cases and tasks from this browser?")){S={cases:{}};save();render()}};
+const gd=d=>{const p=d.split("-");return p[1]+"/"+p[2]+"/"+p[0]};
+$("ics").onclick=async()=>{
+ const dl=await claude.use("downloads");if(!dl){$("ics").hidden=true;return}
+ const q=s=>'"'+String(s||"").replace(/"/g,'""')+'"';
+ const rows=[["Subject","Start Date","All Day Event","Description"]];
+ Object.values(S.cases).forEach(c=>{
+  if(c.nextDate)rows.push(["Hearing: "+c.number,gd(c.nextDate),"True",c.stage||""]);
+  c.tasks.filter(k=>!k.done&&k.due).forEach(k=>rows.push(["Due: "+k.text+" ("+c.number+")",gd(k.due),"True",""]));
+ });
+ try{await dl.save({filename:"case-diary-calendar.csv",data:new Blob([rows.map(r=>r.map(q).join(",")).join("\n")],{type:"text/csv"})})}catch(e){}
+};
+render();
+</script></body></html>

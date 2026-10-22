@@ -1,21 +1,26 @@
 import type { Config } from "tailwindcss";
 
+const v = (name: string) => `rgb(var(--c-${name}) / <alpha-value>)`;
+
 // Design tokens. Status colours are always paired with an icon or text label (never colour alone).
 const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      // Colours are CSS variables (src/app/globals.css) so the whole app follows the system light/dark setting.
       colors: {
-        navy: { 950: "#0B1730", 900: "#12234A", 800: "#1A3166", 700: "#24407F", 100: "#E7ECF6", 50: "#F3F6FB" },
-        paper: "#F6F5F1",
-        ink: "#1B2333",
-        muted: "#5E6676",
-        line: "#E3E0D7",
-        danger: { DEFAULT: "#B42318", soft: "#FEF0EE", line: "#F6C9C3" },
-        warn: { DEFAULT: "#9A4A06", soft: "#FFF5E3", line: "#F5D9A8" },
-        ok: { DEFAULT: "#067647", soft: "#EBF8F1", line: "#B5E3CB" },
-        neutral: { DEFAULT: "#475467", soft: "#F2F4F7", line: "#D9DEE5" },
-        demo: { DEFAULT: "#6B3FA0", soft: "#F4EFFB", line: "#DCCDF0" },
+        navy: { 950: v("navy-950"), 900: v("navy-900"), 800: v("navy-800"), 700: v("navy-700"), 100: v("navy-100"), 50: v("navy-50") },
+        paper: v("paper"),
+        surface: v("surface"),
+        sidebar: v("sidebar"),
+        ink: v("ink"),
+        muted: v("muted"),
+        line: v("line"),
+        danger: { DEFAULT: v("danger"), soft: v("danger-soft"), line: v("danger-line") },
+        warn: { DEFAULT: v("warn"), soft: v("warn-soft"), line: v("warn-line") },
+        ok: { DEFAULT: v("ok"), soft: v("ok-soft"), line: v("ok-line") },
+        neutral: { DEFAULT: v("neutral"), soft: v("neutral-soft"), line: v("neutral-line") },
+        demo: { DEFAULT: v("demo"), soft: v("demo-soft"), line: v("demo-line") },
       },
       fontFamily: {
         sans: ["ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Noto Sans", "Noto Sans Kannada", "Helvetica Neue", "Arial", "sans-serif"],

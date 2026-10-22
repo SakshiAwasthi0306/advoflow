@@ -32,6 +32,7 @@ export function dashboard(ws: Workspace, today = todayIST()) {
   const open = ws.tasks.filter((t) => t.status === "open" && liveIds.has(t.caseId));
   return {
     todayHearings: hearings.filter((h) => h.date === today),
+    tomorrowHearings: hearings.filter((h) => h.date === addDays(today, 1)),
     weekHearings: hearings.filter((h) => h.date > today && h.date <= addDays(today, 7)).sort((a, b) => a.date.localeCompare(b.date)),
     dueToday: open.filter((t) => t.dueDate === today),
     overdue: open.filter((t) => t.dueDate && t.dueDate < today).sort((a, b) => a.dueDate!.localeCompare(b.dueDate!)),
@@ -47,8 +48,13 @@ export function dashboard(ws: Workspace, today = todayIST()) {
     researchToReview: ws.research.filter((r) => liveIds.has(r.caseId) && r.versions.at(-1)?.status === "needs_review"),
     recent: [...ws.audit].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 10),
     caseCount: live.length,
+    // Carried over from the Case Diary: a plain estimate, labelled as one, from the advocate's own (non-demo) orders.
+    ordersRecorded: ws.orders.filter((o) => !o.isDemo).length,
   };
 }
+
+/** Minutes assumed per order when it is written into a diary by hand (the Case Diary prototype used the same figure). */
+export const MINUTES_PER_ORDER = 10;
 
 export function dueLabel(due: string | null, today = todayIST()): { text: string; tone: "overdue" | "soon" | "normal" | "none" } {
   if (!due) return { text: "No due date", tone: "none" };

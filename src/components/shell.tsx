@@ -31,7 +31,7 @@ function NavLinks({ onNavigate, reviewCount }: { onNavigate?: () => void; review
               href={href}
               onClick={onNavigate}
               aria-current={active ? "page" : undefined}
-              className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm ${active ? "bg-white/10 font-semibold text-white" : "text-navy-100/80 hover:bg-white/5 hover:text-white"}`}
+              className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm ${active ? "bg-white/10 font-semibold text-white" : "text-white/70 hover:bg-white/5 hover:text-white"}`}
             >
               <I className="h-4 w-4" aria-hidden />
               <span className="flex-1">{label}</span>
@@ -66,12 +66,12 @@ export function Shell({ children, office, user, role, alerts, reviewCount, modeN
 
   return (
     <div className="min-h-screen lg:pl-60">
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-white focus:px-3 focus:py-2">Skip to content</a>
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-surface focus:px-3 focus:py-2">Skip to content</a>
       {/* Desktop sidebar */}
-      <aside className="no-print fixed inset-y-0 left-0 hidden w-60 flex-col bg-navy-900 px-3 py-4 lg:flex">
+      <aside className="no-print fixed inset-y-0 left-0 hidden w-60 flex-col bg-sidebar px-3 py-4 lg:flex">
         <Brand />
         <nav aria-label="Main" className="mt-6 flex-1"><NavLinks reviewCount={reviewCount} /></nav>
-        <div className="rounded-lg bg-white/5 px-3 py-2 text-xs text-navy-100/80">
+        <div className="rounded-lg bg-white/5 px-3 py-2 text-xs text-white/70">
           <div className="font-medium text-white">{office}</div>
           <div>{user} · {role}</div>
         </div>
@@ -80,7 +80,7 @@ export function Shell({ children, office, user, role, alerts, reviewCount, modeN
       {open && (
         <div className="no-print fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
           <div className="absolute inset-0 bg-navy-950/50" onClick={() => setOpen(false)} />
-          <div className="absolute inset-y-0 left-0 w-72 bg-navy-900 px-3 py-4">
+          <div className="absolute inset-y-0 left-0 w-72 bg-sidebar px-3 py-4">
             <div className="flex items-center justify-between"><Brand /><button aria-label="Close menu" className="p-2 text-white" onClick={() => setOpen(false)}><X className="h-5 w-5" /></button></div>
             <nav aria-label="Main" className="mt-6"><NavLinks onNavigate={() => setOpen(false)} reviewCount={reviewCount} /></nav>
           </div>
@@ -101,10 +101,10 @@ export function Shell({ children, office, user, role, alerts, reviewCount, modeN
           <div className="relative" ref={bellRef}>
             <button className="btn-ghost btn-sm relative" aria-label={`Notifications (${alerts.length})`} aria-expanded={bell} onClick={(e) => { e.stopPropagation(); setBell(!bell); }}>
               <Bell className="h-5 w-5" />
-              {alerts.length > 0 && <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">{alerts.length}</span>}
+              {alerts.length > 0 && <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-danger px-1 text-[10px] font-bold text-surface">{alerts.length}</span>}
             </button>
             {bell && (
-              <div className="absolute right-0 mt-2 w-[min(92vw,360px)] rounded-xl border border-line bg-white p-2 shadow-xl">
+              <div className="absolute right-0 mt-2 w-[min(92vw,360px)] rounded-xl border border-line bg-surface p-2 shadow-xl">
                 <div className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted">Needs attention</div>
                 {alerts.length === 0 ? <div className="px-2 py-3 text-sm text-muted">Nothing needs attention right now.</div> : (
                   <ul>{alerts.slice(0, 12).map((a, i) => (

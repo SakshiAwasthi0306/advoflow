@@ -14,7 +14,7 @@ function chip(i: CalendarItem) {
   const style = i.kind === "deadline"
     ? i.status === "done" ? "border-ok-line bg-ok-soft text-ok line-through" : "border-warn-line bg-warn-soft text-warn"
     : i.status === "confirmed" ? "border-navy-100 bg-navy-50 text-navy-900"
-    : i.status === "awaiting_verification" ? "border-dashed border-neutral-line bg-white text-neutral"
+    : i.status === "awaiting_verification" ? "border-dashed border-neutral-line bg-surface text-neutral"
     : "border-neutral-line bg-neutral-soft text-neutral line-through";
   const prefix = i.kind === "deadline" ? "Due" : i.status === "confirmed" ? "Hearing" : i.status === "awaiting_verification" ? "Unconfirmed" : i.status === "held" ? "Held" : "Superseded";
   return (
@@ -99,7 +99,7 @@ export default async function Calendar({ searchParams }: { searchParams: Record<
               const list = byDate.get(d) ?? [];
               return (
                 <div key={d} className={cx("border-b border-r border-line p-1.5", view === "week" ? "min-h-[220px]" : "min-h-[104px]", !inMonth && "bg-paper/60")}>
-                  <div className={cx("mb-1 text-xs", d === today ? "inline-grid h-6 w-6 place-items-center rounded-full bg-navy-900 font-semibold text-white" : inMonth ? "text-ink" : "text-muted")}>{Number(d.slice(8))}</div>
+                  <div className={cx("mb-1 text-xs", d === today ? "inline-grid h-6 w-6 place-items-center rounded-full bg-navy-900 font-semibold text-surface" : inMonth ? "text-ink" : "text-muted")}>{Number(d.slice(8))}</div>
                   <div className="space-y-1">{list.slice(0, view === "week" ? 12 : 3).map(chip)}{list.length > (view === "week" ? 12 : 3) && <Link href={q({ view: "agenda", d })} className="text-[11px] text-navy-800">+{list.length - 3} more</Link>}</div>
                 </div>
               );

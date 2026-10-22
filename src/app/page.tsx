@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen, Briefcase, CalendarClock, ListPlus, Upload } from "lucide-react";
 import { pageData } from "@/lib/server";
-import { dashboard } from "@/lib/services/queries";
+import { dashboard, MINUTES_PER_ORDER } from "@/lib/services/queries";
 import { formatDate, todayIST } from "@/lib/dates";
 import { Badge, Card, DemoBadge, EmptyState, PageHeader, Stat } from "@/components/ui";
 import { DueBadge, HearingBadge } from "@/components/status";
@@ -54,7 +54,7 @@ export default async function Dashboard() {
       <PageHeader
         eyebrow={greeting}
         title="Today"
-        subtitle={`${d.caseCount} active case${d.caseCount === 1 ? "" : "s"} in ${ws.office.name}`}
+        subtitle={`${d.caseCount} active case${d.caseCount === 1 ? "" : "s"} in ${ws.office.name}${d.ordersRecorded ? ` · ${d.ordersRecorded} order${d.ordersRecorded === 1 ? "" : "s"} recorded, about ${d.ordersRecorded * MINUTES_PER_ORDER} minutes of manual diary work saved (assuming ${MINUTES_PER_ORDER} min per order)` : ""}`}
         actions={<>
           <Link href="/cases/new" className="btn-secondary"><Briefcase className="h-4 w-4" aria-hidden /> New case</Link>
           <Link href="/tasks#add" className="btn-secondary"><ListPlus className="h-4 w-4" aria-hidden /> Add task</Link>

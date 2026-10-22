@@ -73,7 +73,7 @@ export function UploadForm({ defaultCase, sample }: { defaultCase: string; sampl
       </div>
       <div>
         <label className="label" htmlFor="u-files">Or upload files</label>
-        <label htmlFor="u-files" className="flex cursor-pointer flex-col items-center rounded-xl border-2 border-dashed border-line bg-white px-4 py-6 text-center hover:border-navy-700/40">
+        <label htmlFor="u-files" className="flex cursor-pointer flex-col items-center rounded-xl border-2 border-dashed border-line bg-surface px-4 py-6 text-center hover:border-navy-700/40">
           <FileUp className="mb-1 h-6 w-6 text-muted" aria-hidden />
           <span className="text-sm font-medium">Choose PDFs, photos (JPG, PNG) or .txt files</span>
           <span className="text-xs text-muted">Up to 20 files, 15 MB each. Downloaded eCourts PDFs work best.</span>

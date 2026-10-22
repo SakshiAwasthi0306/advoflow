@@ -174,7 +174,7 @@ export function ReviewForm({ jobId, ex, match, cases, readOnly }: { jobId: strin
 
       {error && <div role="alert" className="rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger">{error}</div>}
       {!readOnly && (
-        <div className="sticky bottom-0 -mx-4 flex flex-wrap gap-2 border-t border-line bg-white/95 px-4 py-3 sm:-mx-5 sm:px-5">
+        <div className="sticky bottom-0 -mx-4 flex flex-wrap gap-2 border-t border-line bg-surface/95 px-4 py-3 sm:-mx-5 sm:px-5">
           <button type="button" className="btn-primary" onClick={approve} disabled={!!busy}>{busy === "approve" ? "Saving…" : "Review and confirm"}</button>
           <button type="button" className="btn-danger" onClick={reject} disabled={!!busy}>{armedReject ? "Click again to reject" : "Reject proposed update"}</button>
           <span className="self-center text-xs text-muted">Confirming adds the order to the timeline, updates the hearing, creates ticked tasks and drafts client messages — all together.</span>

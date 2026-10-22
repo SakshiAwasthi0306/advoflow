@@ -61,7 +61,7 @@ export function DemoBadge() {
 
 export function EmptyState({ title, body, action, icon }: { title: string; body?: ReactNode; action?: ReactNode; icon?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center rounded-xl border border-dashed border-line bg-white/60 px-6 py-10 text-center">
+    <div className="flex flex-col items-center rounded-xl border border-dashed border-line bg-surface/60 px-6 py-10 text-center">
       <div className="mb-2 text-muted">{icon ?? <HelpCircle className="h-6 w-6" aria-hidden />}</div>
       <div className="font-medium">{title}</div>
       {body && <div className="mt-1 max-w-md text-sm text-muted">{body}</div>}

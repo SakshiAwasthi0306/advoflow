@@ -115,7 +115,7 @@ export default async function CaseWorkspace({ params, searchParams }: { params: 
                 const oReports = reports.filter((r) => r.versions.some((v) => v.orderIds.includes(o.id)));
                 return (
                   <li key={o.id} className="relative">
-                    <span aria-hidden className={`absolute -left-[27px] top-5 h-3 w-3 rounded-full border-2 border-white ${i === 0 ? "bg-navy-900" : "bg-line"}`} />
+                    <span aria-hidden className={`absolute -left-[27px] top-5 h-3 w-3 rounded-full border-2 border-surface ${i === 0 ? "bg-navy-900" : "bg-line"}`} />
                     <article className={`card p-4 ${i === 0 ? "border-navy-700/40" : ""}`}>
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="font-semibold">{o.orderDate ? `Order of ${formatDate(o.orderDate)}` : "Order (date not recorded)"}</h3>
@@ -133,7 +133,7 @@ export default async function CaseWorkspace({ params, searchParams }: { params: 
                       {o.directions.length > 0 && <div className="mt-2 text-sm"><div className="font-medium">Directions (as stated in the order)</div><ul className="ml-5 list-disc text-muted">{o.directions.map((d, j) => <li key={j}>{d}</li>)}</ul></div>}
                       {oTasks.length > 0 && <div className="mt-2 text-sm"><span className="font-medium">Tasks: </span>{oTasks.map((t) => t.title).join(" · ")}</div>}
                       {o.extractionSnapshot && <details className="mt-2 text-sm"><summary className="cursor-pointer text-navy-800">What was extracted vs. approved</summary>
-                        <p className="mt-1 text-muted">Extractor: {o.extractionSnapshot.extractor === "anthropic" ? `Claude (${o.extractionSnapshot.model})` : "rule-based demo extractor"}. Approved fields: {o.approvedFields.join(", ") || "none"}.</p>
+                        <p className="mt-1 text-muted">Extractor: {o.extractionSnapshot.extractor === "anthropic" ? `Claude (${o.extractionSnapshot.model})` : o.extractionSnapshot.extractor === "case-diary-import" ? "imported from the Case Diary prototype" : "rule-based demo extractor"}. Approved fields: {o.approvedFields.join(", ") || "none"}.</p>
                         {o.extractionSnapshot.warnings.length > 0 && <ul className="ml-5 list-disc text-warn">{o.extractionSnapshot.warnings.map((w, j) => <li key={j}>{w}</li>)}</ul>}
                       </details>}
                       <div className="mt-3 flex flex-wrap gap-2">

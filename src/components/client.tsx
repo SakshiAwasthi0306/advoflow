@@ -21,7 +21,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div aria-live="polite" className="fixed bottom-4 right-4 z-[60] flex w-[min(92vw,380px)] flex-col gap-2">
         {items.map((t) => (
-          <div key={t.id} role="status" className={`flex items-start gap-2 rounded-lg border bg-white px-3 py-2.5 text-sm shadow-lg ${t.tone === "ok" ? "border-ok-line" : "border-danger-line"}`}>
+          <div key={t.id} role="status" className={`flex items-start gap-2 rounded-lg border bg-surface px-3 py-2.5 text-sm shadow-lg ${t.tone === "ok" ? "border-ok-line" : "border-danger-line"}`}>
             {t.tone === "ok" ? <CheckCircle2 className="mt-0.5 h-4 w-4 text-ok" aria-hidden /> : <XCircle className="mt-0.5 h-4 w-4 text-danger" aria-hidden />}
             <span className="flex-1">{t.text}</span>
             <button aria-label="Dismiss" onClick={() => setItems((x) => x.filter((y) => y.id !== t.id))}><X className="h-4 w-4 text-muted" /></button>
@@ -120,7 +120,7 @@ export function Dialog({ trigger, title, children, triggerClass = "btn-primary" 
   return (
     <>
       <button type="button" className={triggerClass} onClick={() => setOpen(true)}>{trigger}</button>
-      <dialog ref={ref} onClose={() => setOpen(false)} className="w-[min(94vw,560px)] rounded-xl border border-line p-0 shadow-2xl backdrop:bg-navy-950/40">
+      <dialog ref={ref} onClose={() => setOpen(false)} className="w-[min(94vw,560px)] rounded-xl border border-line bg-surface p-0 text-ink shadow-2xl backdrop:bg-navy-950/40">
         {open && (
           <div className="p-5">
             <div className="mb-4 flex items-center justify-between">

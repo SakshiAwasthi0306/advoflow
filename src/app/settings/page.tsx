@@ -3,6 +3,7 @@ import { config, integrationStatus } from "@/lib/config";
 import { Badge, Card, Notice, PageHeader } from "@/components/ui";
 import { ActionButton } from "@/components/client";
 import { LogoutButton } from "@/components/logout";
+import { DiaryImport } from "@/components/diary-import";
 
 export const metadata = { title: "Settings" };
 
@@ -28,6 +29,10 @@ export default async function Settings() {
           <p className="mb-3 text-sm text-muted">Download every record for this office as JSON (owner only). Uploaded files stay in private storage.</p>
           {session.role === "owner" && <a className="btn-secondary" href="/api/export">Export office data</a>}
           <div className="mt-4"><Notice tone="neutral">Data in this office is never shown to another office. {config.databaseUrl ? "It is stored in PostgreSQL." : "In this setup it is stored as files in .data/ on this machine — fine for a demo, not for real client data."}</Notice></div>
+        </Card>
+        <Card title="Import from Case Diary">
+          <p className="mb-3 text-sm text-muted">Bring cases, order history, tasks and client messages over from the original single-page Case Diary, which kept them in your browser.</p>
+          {session.role === "owner" || session.role === "advocate" ? <DiaryImport /> : <p className="text-sm text-muted">Only an advocate or the office owner can import orders.</p>}
         </Card>
         <Card title="Team">
           <ul className="text-sm">{ws.members.map((m) => <li key={m.userId} className="flex justify-between py-1"><span>{m.name}</span><Badge tone="neutral" icon={false}>{m.role}</Badge></li>)}</ul>

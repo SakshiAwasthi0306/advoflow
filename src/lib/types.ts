@@ -104,7 +104,7 @@ export interface Extraction {
   clientUpdateKn: string;
   confidence: "high" | "medium" | "low";
   warnings: string[];
-  extractor: "demo-rules" | "anthropic";
+  extractor: "demo-rules" | "anthropic" | "case-diary-import";
   model: string | null;
 }
 

@@ -23,7 +23,7 @@ export default async function Review({ params }: { params: { id: string } }) {
       <PageHeader
         eyebrow={<Link href="/upload" className="link">Upload Orders</Link>}
         title={job.status === "failed" ? "Enter order details" : "Review and confirm"}
-        subtitle={<span className="flex flex-wrap items-center gap-2"><JobBadge status={job.status} />{doc?.filename}{doc?.isDemo && <DemoBadge />}{ex && <span className="text-muted">· {ex.extractor === "anthropic" ? `Read by Claude (${ex.model})` : "Read by the rule-based demo extractor"} · confidence {ex.confidence}</span>}</span>}
+        subtitle={<span className="flex flex-wrap items-center gap-2"><JobBadge status={job.status} />{doc?.filename}{doc?.isDemo && <DemoBadge />}{ex && <span className="text-muted">· {ex.extractor === "anthropic" ? `Read by Claude (${ex.model})` : ex.extractor === "case-diary-import" ? "Imported from the Case Diary prototype" : "Read by the rule-based demo extractor"} · confidence {ex.confidence}</span>}</span>}
         actions={job.status === "rejected" ? <ActionButton url={`/api/jobs/${job.id}`} body={{ action: "reopen" }} success="Reopened for review">Reopen</ActionButton> : order ? <Link className="btn-primary" href={`/cases/${order.caseId}?tab=orders`}>Open case</Link> : null}
       />
       <div className="mb-4 space-y-2">

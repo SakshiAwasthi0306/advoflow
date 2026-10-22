@@ -27,10 +27,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     ...d.needsReschedule.map((t) => ({ text: `Hearing moved — review task: ${t.title}`, href: `/cases/${t.caseId}?tab=tasks`, tone: "warn" as const })),
     ...d.awaitingReview.map((j) => ({ text: `Order awaiting verification${j.match?.caseId ? ` (${num(j.match.caseId)})` : ""}`, href: `/review/${j.id}`, tone: "warn" as const })),
     ...d.unconfirmedHearings.map((h) => ({ text: `Hearing date not confirmed: ${num(h.caseId)}`, href: `/cases/${h.caseId}?tab=orders`, tone: "warn" as const })),
+    ...d.tomorrowHearings.map((h) => ({ text: `Hearing tomorrow: ${num(h.caseId)}${h.purpose ? ` – ${h.purpose}` : ""}`, href: `/cases/${h.caseId}`, tone: "warn" as const })),
     ...d.dueToday.map((t) => ({ text: `Due today: ${t.title}`, href: `/cases/${t.caseId}?tab=tasks`, tone: "warn" as const })),
   ];
   const notes: string[] = [];
-  if (config.authMode === "demo") notes.push("Demo mode: no login, data stored on this machine only");
+  if (config.authMode === "demo") notes.push(config.databaseUrl ? "Open demo: no login, anyone with the link sees and can change this data" : "Demo mode: no login, data stored on this machine only");
   if (!config.anthropicKey) notes.push("AI not connected (rule-based demo extraction)");
   if (config.researchConnector !== "indiankanoon") notes.push("Legal research uses fictional demo sources");
   return (
