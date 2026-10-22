@@ -1,0 +1,15 @@
+node_modules/
+.next/
+out/
+coverage/
+.data/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.DS_Store
+npm-debug.log*
+.neon
+.vercel
+.env*
+!.env.example
