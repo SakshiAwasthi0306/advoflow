@@ -16,7 +16,7 @@ const NOTICES: Record<string, string> = {
 
 export default async function Login({ searchParams }: { searchParams: { notice?: string } }) {
   if (config.authMode === "demo") redirect("/");
-  if (await getSession()) redirect("/profile");
+  if (await getSession()) redirect("/start");
   return (
     <main className="grid min-h-screen place-items-center bg-sidebar px-4">
       <div className="card w-full max-w-sm p-6">

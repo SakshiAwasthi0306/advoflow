@@ -184,3 +184,10 @@ export async function requestDeletion(userId: string, reason?: string) {
   logger.warn("account.deletion_requested", { userId, scheduledFor: scheduledFor.toISOString() });
   return { scheduledFor: scheduledFor.toISOString() };
 }
+
+/** Where sign-in lands: the profile until the advocate has saved their professional details once, then the dashboard. */
+export async function firstScreenFor(userId: string): Promise<"/profile" | "/"> {
+  const p = await db().advocateProfile.findUnique({ where: { userId }, select: { barEnrolmentNo: true, stateBarCouncil: true, practiceSinceYear: true, practiceAreas: true, officeAddressLine1: true } });
+  const created = !!p && !!(p.barEnrolmentNo || p.stateBarCouncil || p.practiceSinceYear !== null || p.practiceAreas.length || p.officeAddressLine1);
+  return created ? "/" : "/profile";
+}
