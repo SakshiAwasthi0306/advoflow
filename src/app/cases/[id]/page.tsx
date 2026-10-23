@@ -7,6 +7,9 @@ import { formatDate, todayIST } from "@/lib/dates";
 import { Badge, Card, DemoBadge, EmptyState, KeyVal, Notice, PageHeader, Tabs } from "@/components/ui";
 import { DueBadge, HearingBadge, JobBadge } from "@/components/status";
 import { ActionButton } from "@/components/client";
+import { AIClientDraft } from "@/components/ai-client-draft";
+import { languageLabel } from "@/lib/languages";
+import { usesAIService } from "@/lib/config";
 import { AddTaskForm, ClientUpdateEditor, HearingConfirm, LinkClient, RescheduleActions, ResearchStart, TaskEdit, TaskToggle } from "@/components/widgets";
 
 export default async function CaseWorkspace({ params, searchParams }: { params: { id: string }; searchParams: { tab?: string } }) {
@@ -15,6 +18,7 @@ export default async function CaseWorkspace({ params, searchParams }: { params: 
   if (!c) notFound();
   const today = todayIST();
   const tab = searchParams.tab ?? "overview";
+  const aiReady = usesAIService();
   const s = caseSummary(ws, c, today);
   const orders = ws.orders.filter((o) => o.caseId === c.id).sort((a, b) => (b.orderDate ?? "").localeCompare(a.orderDate ?? "") || b.approvedAt.localeCompare(a.approvedAt));
   const hearings = ws.hearings.filter((h) => h.caseId === c.id).sort((a, b) => b.date.localeCompare(a.date));
@@ -234,14 +238,18 @@ export default async function CaseWorkspace({ params, searchParams }: { params: 
       {tab === "client" && (
         <div className="space-y-4">
           <Card title="Client">
-            {client ? <p className="text-sm"><span className="font-medium">{client.name}</span> · {client.phone ?? "no phone"} · prefers {client.preferredLanguage === "kn" ? "Kannada" : "English"} by {client.preferredChannel}</p> : <p className="text-sm text-muted">No client linked. Link one on the Overview tab so messages can be addressed and sent to the right number.</p>}
+            {client ? <p className="text-sm"><span className="font-medium">{client.name}</span> · {client.phone ?? "no phone"} · prefers {languageLabel(client.preferredLanguage)} by {client.preferredChannel}</p> : <p className="text-sm text-muted">No client linked. Link one on the Overview tab so messages can be addressed and sent to the right number.</p>}
           </Card>
-          <Notice tone="neutral">Drafts are built only from approved order details and never include legal analysis. Nothing is sent automatically: “Open in WhatsApp” only opens a chat with the text filled in, and does not confirm delivery. The Kannada draft is template-based; have a Kannada speaker check it before sending.</Notice>
+          <Notice tone="neutral">Drafts are built only from approved order details and never include legal analysis. Nothing is sent automatically: “Open in WhatsApp” only opens a chat with the text filled in, and does not confirm delivery. English and Kannada drafts use fixed wording; drafts in other languages are written by the AI and come with an English check. Have a speaker of the language check any draft before sending.</Notice>
+          <Card title="Draft in another language">
+            <AIClientDraft caseId={c.id} defaultLang={client?.preferredLanguage ?? "en"} aiReady={aiReady} hasOrder={ws.orders.some((o) => o.caseId === c.id)} />
+          </Card>
           {updates.length ? updates.map((u) => (
-            <Card key={u.id} title={<span className="flex flex-wrap items-center gap-2">{u.lang === "en" ? "English" : "ಕನ್ನಡ · Kannada"} <span className="text-xs font-normal text-muted">{u.sourceOrderId ? orderLabel(u.sourceOrderId) : ""}</span>{u.status === "handed_off" ? <Badge tone="navy">Opened in WhatsApp</Badge> : <Badge tone="neutral">Draft</Badge>}</span>}>
+            <Card key={u.id} title={<span className="flex flex-wrap items-center gap-2">{languageLabel(u.lang)}{u.origin === "ai" && <Badge tone="warn">AI draft — check before sending</Badge>} <span className="text-xs font-normal text-muted">{u.sourceOrderId ? orderLabel(u.sourceOrderId) : ""}</span>{u.status === "handed_off" ? <Badge tone="navy">Opened in WhatsApp</Badge> : <Badge tone="neutral">Draft</Badge>}</span>}>
               <ClientUpdateEditor id={u.id} text={u.text} lang={u.lang} status={u.status} phone={client?.phone ?? null} waLinkBase="https://wa.me/" />
+              {u.checkText && <details className="mt-2 text-sm"><summary className="cursor-pointer text-muted">What this says in English</summary><p className="mt-1 rounded-lg bg-paper p-2">{u.checkText}</p></details>}
             </Card>
-          )) : <EmptyState title="No client updates yet" body="A draft in English and Kannada is created each time you approve an order." />}
+          )) : <EmptyState title="No client updates yet" body="An English draft (and Kannada, when the client prefers it) is created each time you approve an order. Use “Draft in another language” for any other language." />}
         </div>
       )}
       <p className="mt-8 text-xs text-muted">Signed in as {session.name} ({session.role}).</p>

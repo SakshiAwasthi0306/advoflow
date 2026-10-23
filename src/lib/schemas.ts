@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isValidISODate } from "./util";
+import { LANG_CODES } from "./languages";
 
 const isoDate = z.string().refine(isValidISODate, "Must be a real date in YYYY-MM-DD form");
 
@@ -100,7 +101,7 @@ export const clientInputSchema = z.object({
   name: z.string().trim().min(1).max(120),
   phone: z.string().trim().max(20).nullable().default(null),
   email: z.string().trim().email().nullable().or(z.literal("").transform(() => null)).default(null),
-  preferredLanguage: z.enum(["en", "kn"]).default("en"),
+  preferredLanguage: z.enum(LANG_CODES).default("en"),
   preferredChannel: z.enum(["whatsapp", "phone", "email"]).default("whatsapp"),
   notes: z.string().max(2000).default(""),
 });

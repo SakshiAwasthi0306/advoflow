@@ -1,3 +1,4 @@
+import type { LangCode } from "./languages";
 // Core domain types for AdvoFlow.
 // Everything an office owns lives in one Workspace aggregate, loaded and saved as a unit
 // so related changes (an order + its hearing + its tasks) commit together.
@@ -25,7 +26,7 @@ export interface Client {
   name: string;
   phone: string | null;
   email: string | null;
-  preferredLanguage: "en" | "kn";
+  preferredLanguage: LangCode;
   preferredChannel: "whatsapp" | "phone" | "email";
   notes: string;
   isDemo: boolean;
@@ -241,9 +242,13 @@ export interface ClientUpdate {
   id: string;
   caseId: string;
   clientId: string | null;
-  lang: "en" | "kn";
+  lang: LangCode;
   text: string;
   status: "draft" | "approved" | "handed_off";
+  /** "template" (fixed wording) or "ai" (drafted by the model from confirmed facts). Absent = template. */
+  origin?: "template" | "ai";
+  /** For AI drafts: a plain English rendering of the message, so it can be checked without reading the language. */
+  checkText?: string | null;
   sourceOrderId: string | null;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;

@@ -218,14 +218,15 @@ export function approveJob(ws: Workspace, session: Session, jobId: string, input
     ws.tasks.push(task);
   }
 
-  // 5. Client update drafts from approved data only.
+  // 5. Client update drafts from approved data only: English, plus Kannada when the client prefers it (or no client
+  //    is linked yet). Any other language is drafted on request from the case's Client tab (AI, from confirmed facts).
   const client = ws.clients.find((x) => x.id === c.clientId) ?? null;
-  for (const lang of ["en", "kn"] as const) {
+  for (const lang of !client || client.preferredLanguage === "kn" ? (["en", "kn"] as const) : (["en"] as const)) {
     if (ws.clientUpdates.some((u) => u.sourceOrderId === order.id && u.lang === lang)) continue;
     ws.clientUpdates.push({
       id: newId("cu"), caseId: c.id, clientId: client?.id ?? null, lang,
       text: lang === "en" ? clientUpdateEn(c, order, client, ws.office.name) : clientUpdateKn(c, order, client, ws.office.name),
-      status: "draft", sourceOrderId: order.id, createdAt: nowISO(), updatedAt: nowISO(), handedOffAt: null,
+      status: "draft", sourceOrderId: order.id, createdAt: nowISO(), updatedAt: nowISO(), handedOffAt: null, origin: "template",
     });
   }
 

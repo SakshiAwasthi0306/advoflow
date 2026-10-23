@@ -143,7 +143,7 @@ function toRows(ws: Workspace, stamps: Stamps, now: Date): Rows {
   }
   for (const u of ws.clientUpdates) {
     rows.clientMessage.push({
-      id: u.id, officeId: o, caseId: u.caseId, clientId: u.clientId && clientIds.has(u.clientId) ? u.clientId : null, lang: up(u.lang), text: u.text,
+      id: u.id, officeId: o, caseId: u.caseId, clientId: u.clientId && clientIds.has(u.clientId) ? u.clientId : null, lang: up(u.lang), text: u.text, origin: u.origin ?? null, checkText: u.checkText ?? null,
       status: up(u.status), sourceOrderId: u.sourceOrderId, handedOffAt: ts(u.handedOffAt), createdAt: ts(u.createdAt), updatedAt: ts(u.updatedAt),
     });
   }
@@ -231,7 +231,7 @@ async function readOffice(db: PrismaClient | Tx, officeId: string) {
       createdBy: t.createdById ?? "", createdAt: iso(t.createdAt), completedAt: t.completedAt ? iso(t.completedAt) : null,
     })),
     clientUpdates: messages.map((u): ClientUpdate => ({
-      id: u.id, caseId: u.caseId, clientId: u.clientId, lang: low(u.lang), text: u.text, status: low(u.status), sourceOrderId: u.sourceOrderId,
+      id: u.id, caseId: u.caseId, clientId: u.clientId, lang: low(u.lang), text: u.text, ...(u.origin ? { origin: u.origin as "template" | "ai" } : {}), ...(u.checkText ? { checkText: u.checkText } : {}), status: low(u.status), sourceOrderId: u.sourceOrderId,
       createdAt: iso(u.createdAt), updatedAt: iso(u.updatedAt), handedOffAt: u.handedOffAt ? iso(u.handedOffAt) : null,
     })),
     research: reports.map((rep): ResearchReport => ({

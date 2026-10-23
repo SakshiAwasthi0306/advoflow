@@ -95,6 +95,7 @@ describe.skipIf(!BASE || !DB || !LOG)("AI endpoints over HTTP (no AI key configu
     expectError(await http("GET", "/api/ai/extractions/anything"), 401, "UNAUTHENTICATED");
     expectError(await http("POST", "/api/ai/extractions/anything/confirm", { json: { confirm: true } }), 401, "UNAUTHENTICATED");
     expectError(await http("POST", "/api/ai/extractions/anything/reject", { json: {} }), 401, "UNAUTHENTICATED");
+    expectError(await http("POST", "/api/ai/client-updates", { json: { caseId: "x", lang: "ta" } }), 401, "UNAUTHENTICATED");
   });
 
   it("10. without an AI key: a clear configuration error, and the rest of the app works", async () => {
@@ -102,6 +103,7 @@ describe.skipIf(!BASE || !DB || !LOG)("AI endpoints over HTTP (no AI key configu
     expectError(r, 503, "AI_NOT_CONFIGURED");
     expect(r.headers.get("x-request-id")).toBe(r.body.requestId);
     expect(r.text).not.toMatch(/sk-|AIza|api[_-]?key=/i);
+    expectError(await http("POST", "/api/ai/client-updates", { jar: A, json: { caseId: "x", lang: "ta" } }), 503, "AI_NOT_CONFIGURED");
     expect((await http("GET", "/api/health")).status).toBe(200);
     expect((await http("GET", "/api/auth/me", { jar: A })).status).toBe(200);
     expect((await http("GET", "/api/calendar", { jar: A })).status).toBe(200);

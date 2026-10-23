@@ -2,9 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { LANGUAGES, languageLabel, type LangCode } from "@/lib/languages";
 import { api, useToast } from "./client";
 
-export interface ClientValues { name: string; phone: string; email: string; preferredLanguage: "en" | "kn"; preferredChannel: "whatsapp" | "phone" | "email"; notes: string }
+export interface ClientValues { name: string; phone: string; email: string; preferredLanguage: LangCode; preferredChannel: "whatsapp" | "phone" | "email"; notes: string }
 
 export function ClientForm({ id, initial, onDone }: { id?: string; initial?: Partial<ClientValues>; onDone?: () => void }) {
   const router = useRouter();
@@ -35,7 +36,7 @@ export function ClientForm({ id, initial, onDone }: { id?: string; initial?: Par
       <div><label className="label" htmlFor={`cp-${id ?? "new"}`}>WhatsApp / phone</label><input id={`cp-${id ?? "new"}`} className="input" inputMode="tel" value={v.phone} onChange={set("phone")} placeholder="10-digit mobile" /></div>
       <div><label className="label" htmlFor={`ce-${id ?? "new"}`}>Email</label><input id={`ce-${id ?? "new"}`} type="email" className="input" value={v.email} onChange={set("email")} /></div>
       <div className="grid grid-cols-2 gap-2">
-        <div><label className="label" htmlFor={`cl-${id ?? "new"}`}>Language</label><select id={`cl-${id ?? "new"}`} className="input" value={v.preferredLanguage} onChange={set("preferredLanguage")}><option value="en">English</option><option value="kn">Kannada</option></select></div>
+        <div><label className="label" htmlFor={`cl-${id ?? "new"}`}>Language</label><select id={`cl-${id ?? "new"}`} className="input" value={v.preferredLanguage} onChange={set("preferredLanguage")}>{LANGUAGES.map((l) => <option key={l.code} value={l.code}>{languageLabel(l.code)}</option>)}</select></div>
         <div><label className="label" htmlFor={`cc-${id ?? "new"}`}>Prefers</label><select id={`cc-${id ?? "new"}`} className="input" value={v.preferredChannel} onChange={set("preferredChannel")}><option value="whatsapp">WhatsApp</option><option value="phone">Phone call</option><option value="email">Email</option></select></div>
       </div>
       <div className="sm:col-span-2"><label className="label" htmlFor={`cno-${id ?? "new"}`}>Notes</label><textarea id={`cno-${id ?? "new"}`} className="input" value={v.notes} onChange={set("notes")} /></div>

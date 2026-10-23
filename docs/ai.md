@@ -51,6 +51,25 @@ Without a key the app works as before (rule-based extractor) and the AI endpoint
 The existing Upload → Review screens use the same service. Another office's id answers the same 404 as an unknown id.
 Every response carries `x-request-id`; errors carry `requestId`, which is also in the server log.
 
+## Client updates in the client's language
+
+Each client has a preferred language: English, Hindi, Kannada, Tamil, Telugu, Malayalam, Marathi, Gujarati, Bengali,
+Punjabi, Odia, Assamese, Urdu or Konkani (`src/lib/languages.ts`; add more there and in the Prisma `Language` enum).
+
+- When an order is approved, an **English** draft is written from fixed wording, plus **Kannada** when the client
+  prefers Kannada (or no client is linked yet). These use no AI.
+- On the case's **Client** tab, "Draft in another language" asks the AI for a draft in **any** of the languages:
+  `POST /api/ai/client-updates { caseId, lang, replace? }` (clerk+, usage limits apply). `201 { update }` ·
+  `409` a draft in that language already exists for the latest order (send `replace: true`) · `400` no approved order yet.
+- The AI receives **only confirmed facts**: case number, title and court; the latest order as the advocate approved it;
+  the current hearing and whether it is confirmed; the client's name and the office name. Never phone numbers, emails,
+  notes, other cases or unapproved drafts. Prompt: `client-update.v1`.
+- Every draft comes with **"What this says in English"** (`checkText`), so an advocate can check a language they do not
+  read. A draft is **rejected** if it (or its English rendering) contains any date that is not a confirmed one, gives
+  a hearing date that is not yet confirmed, or drops the case number. Digits in Indian scripts and Urdu are understood.
+- Drafts are editable and **never sent**: "Open in WhatsApp" only opens a chat with the text filled in. Have a speaker of
+  the language check the draft before sending.
+
 ## Not inventing legal information
 
 The prompt tells the model to report only what the order states, keep order date / past hearings / next hearing /
@@ -110,6 +129,7 @@ with a fictional order. It prints the extracted fields, checks and token usage, 
 Mocked provider (no network, no key): `tests/ai-gemini.test.ts`, `tests/ai-openrouter.test.ts` (valid extraction,
 missing fields stay null, invented or misplaced dates removed, invalid / cut-off / blocked output rejected, quota /
 invalid key / timeouts / 5xx with bounded retries), `tests/ai-config.test.ts` (no key, demo mode),
-`tests/ai-review.test.ts` (no writes before confirmation, only approved fields, field review record, roles, other
+`tests/ai-client-update.test.ts` (languages, confirmed facts only, invented dates / unconfirmed dates / missing case
+number rejected, native digits, drafts never overwrite a sent message, roles), `tests/ai-review.test.ts` (no writes before confirmation, only approved fields, field review record, roles, other
 offices, confirmed dates protected). Over HTTP: `tests/ai.e2e.test.ts` (authentication, office isolation, explicit
 confirmation, configuration error without a key, judgments table untouched).

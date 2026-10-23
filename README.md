@@ -163,7 +163,7 @@ Roles: **owner** (everything, demo data, export), **advocate** (approves orders 
 
 ### AI (Gemini via OpenRouter, or Gemini directly)
 
-Set `OPENROUTER_API_KEY` (or `GEMINI_API_KEY`) on a sign-in deployment. Uploaded orders are then read by the model and turned into a **draft that an advocate confirms field by field**; nothing is written before that. Every value is checked against the document's own text, and dates that cannot be found in their passage are left blank. Endpoints, safeguards, data protection, retention and Vercel setup: **[docs/ai.md](docs/ai.md)**. The shared demo never calls the AI.
+Set `OPENROUTER_API_KEY` (or `GEMINI_API_KEY`) on a sign-in deployment. Uploaded orders are then read by the model and turned into a **draft that an advocate confirms field by field**; nothing is written before that. Every value is checked against the document's own text, and dates that cannot be found in their passage are left blank. Endpoints, safeguards, data protection, retention and Vercel setup: **[docs/ai.md](docs/ai.md)**. Client updates can be drafted in the client's own language (14 languages, including Hindi, Tamil, Telugu and Malayalam) from confirmed facts, each with an English rendering for checking; nothing is sent automatically. The shared demo never calls the AI.
 
 Older option: `ANTHROPIC_API_KEY` (used only when neither key above is set). Uploaded order text is then sent to Anthropic for extraction, and scans and photos for OCR. **Tell your users, and check your client-confidentiality obligations, before enabling this.** Order text is wrapped as untrusted data in prompts; the model is told never to follow instructions inside it.
 

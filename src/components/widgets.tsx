@@ -1,5 +1,7 @@
 "use client";
 
+import { language } from "@/lib/languages";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -125,7 +127,7 @@ export function HearingConfirm({ id, date }: { id: string; date: string }) {
 
 // ---- Client updates ---------------------------------------------------------------
 
-export function ClientUpdateEditor({ id, text, lang, status, phone, waLinkBase }: { id: string; text: string; lang: "en" | "kn"; status: string; phone: string | null; waLinkBase: string }) {
+export function ClientUpdateEditor({ id, text, lang, status, phone, waLinkBase }: { id: string; text: string; lang: string; status: string; phone: string | null; waLinkBase: string }) {
   const router = useRouter();
   const toast = useToast();
   const [t, setT] = useState(text);
@@ -134,8 +136,8 @@ export function ClientUpdateEditor({ id, text, lang, status, phone, waLinkBase }
   const wa = `${waLinkBase}${digits.length === 10 ? "91" + digits : digits}?text=${encodeURIComponent(t)}`;
   return (
     <div>
-      <label className="sr-only" htmlFor={`cu-${id}`}>{lang === "en" ? "English message" : "Kannada message"}</label>
-      <textarea id={`cu-${id}`} lang={lang} className="input min-h-[110px]" value={t} onChange={(e) => setT(e.target.value)} />
+      <label className="sr-only" htmlFor={`cu-${id}`}>{`${language(lang).name} message`}</label>
+      <textarea id={`cu-${id}`} lang={lang} dir={language(lang).rtl ? "rtl" : "auto"} className="input min-h-[110px]" value={t} onChange={(e) => setT(e.target.value)} />
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button className="btn-secondary btn-sm" disabled={!dirty} onClick={async () => { try { await api(`/api/client-updates/${id}`, "PATCH", { text: t }); toast("Draft saved"); router.refresh(); } catch (e) { toast((e as Error).message, "error"); } }}>Save edits</button>
         <CopyButton text={t} />

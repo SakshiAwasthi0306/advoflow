@@ -32,6 +32,18 @@ enum Role {
 enum Language {
   EN
   KN
+  HI
+  TA
+  TE
+  ML
+  MR
+  GU
+  BN
+  PA
+  OR
+  AS
+  UR
+  KOK
 
   @@schema("app")
 }
@@ -709,6 +721,8 @@ model ClientMessage {
   clientId      String?
   lang          Language
   text          String
+  origin        String? // "template" | "ai"
+  checkText     String? // AI drafts: plain-English rendering for the reviewer
   status        MessageStatus   @default(DRAFT)
   channel       ContactChannel?
   sourceOrderId String?
