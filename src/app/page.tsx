@@ -9,6 +9,8 @@ import { ActionButton } from "@/components/client";
 import { QuickActions } from "@/components/quick-actions";
 import type { AuditEntry, Hearing, Workspace } from "@/lib/types";
 import { actionText } from "@/lib/activity";
+import { DayArt } from "@/components/day-art";
+import { Flame, MapPin } from "lucide-react";
 
 const WEEKDAY = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTH = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -68,6 +70,26 @@ export default async function Today() {
     .sort((a, b) => a.date.localeCompare(b.date));
   const next = upcoming[0];
   const toReview = [...d.awaitingReview, ...d.failedJobs];
+
+  // An on-time streak: days since a task was last late (open past its date, or finished after it).
+  const live = new Set(ws.cases.filter((c) => c.status === "active").map((c) => c.id));
+  const dated = ws.tasks.filter((t) => t.dueDate && live.has(t.caseId));
+  const lateNow = dated.some((t) => t.status === "open" && t.dueDate! < today);
+  const lastLate = dated.map((t) => (t.status === "done" && t.completedAt && t.completedAt.slice(0, 10) > t.dueDate! ? t.completedAt.slice(0, 10) : "")).sort().at(-1) || null;
+  const firstTask = dated.map((t) => t.createdAt.slice(0, 10)).sort()[0];
+  const streak = !lateNow && dated.length ? daysBetween(lastLate ?? firstTask, today) : 0;
+
+  // Courts this week, grouped, with a map link for planning the route.
+  const weekEnd = addDays(today, 6);
+  const courts = new Map<string, { court: string; dates: string[]; cases: Set<string> }>();
+  for (const h of ws.hearings) {
+    const c = caseOf(h.caseId);
+    if (!c || c.status !== "active" || h.date < today || h.date > weekEnd || (h.status !== "confirmed" && h.status !== "awaiting_verification") || !c.court) continue;
+    const g = courts.get(c.court) ?? { court: c.court, dates: [], cases: new Set<string>() };
+    g.dates.push(h.date); g.cases.add(c.number); courts.set(c.court, g);
+  }
+  const courtList = [...courts.values()].map((g) => ({ ...g, dates: [...new Set(g.dates)].sort() })).sort((a, b) => a.dates[0].localeCompare(b.dates[0]));
+  const hourIST = Number(new Intl.DateTimeFormat("en-IN", { hour: "numeric", hour12: false, timeZone: "Asia/Kolkata" }).format(new Date()));
 
   // One honest sentence about the day.
   const bits: string[] = [];
@@ -130,7 +152,9 @@ export default async function Today() {
           <div className="kicker mb-1.5">{dateLine} · {ws.office.name}</div>
           <h1 className="display text-[34px] font-medium leading-[1.1] sm:text-[40px]">{greeting(session.name)}</h1>
           <p className="mt-2 max-w-xl text-[15px] text-muted">{summary}</p>
+          {streak >= 3 && <p className="streak mt-3 inline-flex items-center gap-1.5 rounded-full border border-warn-line bg-warn-soft px-3 py-1 text-[13px] font-medium text-warn"><Flame className="streak-flame h-4 w-4" aria-hidden />No overdue tasks for {streak} days</p>}
         </div>
+        <DayArt hour={hourIST} />
       </header>
 
       <div className="animate-rise rise-1"><QuickActions cases={liveCases} canConfirm={canConfirm} today={today} /></div>
@@ -240,6 +264,24 @@ export default async function Today() {
               <ul className="space-y-2 pt-1 text-sm">
                 {d.repeatedAdjournments.slice(0, 4).map(({ c, n: k }) => <li key={c.id}><Link href={`/cases/${c.id}?tab=orders`} className="hover:text-navy-800"><span className="ref font-medium">{c.number}</span> <span className="text-muted">has been adjourned {k} times</span></Link></li>)}
                 {d.researchToReview.slice(0, 3).map((r) => <li key={r.id}><Link href={`/research/${r.id}`} className="hover:text-navy-800"><span className="ref font-medium">{caseOf(r.caseId)?.number}</span> <span className="text-muted">· research ready to review</span></Link></li>)}
+              </ul>
+            </Section>
+          )}
+
+          {courtList.length > 0 && (
+            <Section title={<span className="inline-flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" aria-hidden /> Courts this week</span>} className="animate-rise rise-3">
+              <ul className="space-y-2 pt-1">
+                {courtList.map((g, i) => (
+                  <li key={g.court} className="court-stop relative flex gap-3 pl-5 text-sm" style={{ animationDelay: `${i * 90}ms` }}>
+                    <span aria-hidden className="absolute left-[5px] top-2 h-2.5 w-2.5 rounded-full border-2 border-accent bg-surface" />
+                    {i < courtList.length - 1 && <span aria-hidden className="absolute bottom-[-10px] left-[9px] top-5 w-px bg-accent-line" />}
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-medium leading-snug">{g.court}</span>
+                      <span className="text-xs text-muted">{g.dates.map((d) => (d === today ? "Today" : formatDate(d).replace(/ \d{4}$/, ""))).join(", ")} · {[...g.cases].join(", ")}</span>
+                    </span>
+                    <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(g.court)}`} target="_blank" rel="noopener noreferrer" className="link shrink-0 self-start text-xs">Map ↗</a>
+                  </li>
+                ))}
               </ul>
             </Section>
           )}

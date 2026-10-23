@@ -114,7 +114,7 @@ export function Shell({ children, office, user, role, alerts, reviewCount, modeN
         <Brand />
         <div className="mt-5"><ProfileCard user={user} office={office} role={role} /></div>
         <nav aria-label="Main" className="mt-6 flex-1 overflow-y-auto"><NavLinks reviewCount={reviewCount} /></nav>
-        <p className="px-3 text-[11px] leading-snug text-muted">Press <kbd className="rounded border border-line bg-surface px-1 font-mono text-[10px]">/</kbd> to search</p>
+        <button type="button" onClick={() => window.dispatchEvent(new Event("af-palette"))} className="mx-1 flex items-center justify-between rounded-md border border-line px-2.5 py-1.5 text-left text-[11.5px] text-muted transition-colors hover:border-accent/50 hover:text-ink">Jump to anything <kbd className="rounded border border-line bg-surface px-1 font-mono text-[10px]">⌘K</kbd></button>
       </aside>
       {/* Mobile drawer */}
       {open && (

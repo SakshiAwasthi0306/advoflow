@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { pageData } from "@/lib/server";
-import { caseSummary, dashboard } from "@/lib/services/queries";
+import { caseSummary, dashboard, MINUTES_PER_ORDER } from "@/lib/services/queries";
 import { addDays, formatDate, todayIST } from "@/lib/dates";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
-import { HearingRiver, PulseTiles, RankBars, StageDonut, type RiverDay, type Tile } from "@/components/report-visuals";
+import { HearingRiver, PulseTiles, RankBars, StageDonut, YearInPractice, type RiverDay, type Tile, type YearCell, type YearStat } from "@/components/report-visuals";
 import { PrintButton } from "@/components/research-widgets";
 
 export const metadata = { title: "Reports" };
@@ -38,6 +38,36 @@ export default async function Reports() {
       tasks: open.filter((t) => t.dueDate === date).map((t) => ({ caseId: t.caseId, caseNumber: num(t.caseId), title: t.title })),
     };
   });
+  // A year of work: hearings, confirmed orders, orders read and tasks finished, one square per day.
+  const activity = new Map<string, { h: number; o: number; r: number; t: number }>();
+  const bump = (d: string | null | undefined, k: "h" | "o" | "r" | "t") => { if (!d) return; const e = activity.get(d) ?? { h: 0, o: 0, r: 0, t: 0 }; e[k]++; activity.set(d, e); };
+  const ist = (iso: string) => new Date(Date.parse(iso) + 5.5 * 3600e3).toISOString().slice(0, 10);
+  ws.hearings.filter((h) => h.date <= today && (h.status === "held" || h.status === "confirmed")).forEach((h) => bump(h.date, "h"));
+  ws.orders.forEach((o) => bump(ist(o.approvedAt), "o"));
+  ws.jobs.filter((j) => j.extraction && j.extraction.extractor !== "case-diary-import").forEach((j) => bump(ist(j.createdAt), "r"));
+  ws.tasks.filter((t) => t.completedAt).forEach((t) => bump(ist(t.completedAt!), "t"));
+  const todayDow = (new Date(today + "T00:00:00Z").getUTCDay() + 6) % 7;
+  const gridStart = addDays(today, -(52 * 7 + todayDow));
+  const weeks: YearCell[][] = Array.from({ length: 53 }, (_, w) => Array.from({ length: 7 }, (_, d) => {
+    const date = addDays(gridStart, w * 7 + d);
+    const e = activity.get(date) ?? { h: 0, o: 0, r: 0, t: 0 };
+    const n = e.h + e.o + e.r + e.t;
+    const bits = [e.h && `${e.h} hearing${e.h > 1 ? "s" : ""}`, e.o && `${e.o} order${e.o > 1 ? "s" : ""} confirmed`, e.r && `${e.r} order${e.r > 1 ? "s" : ""} read`, e.t && `${e.t} task${e.t > 1 ? "s" : ""} done`].filter(Boolean);
+    return { date, n, future: date > today, label: `${formatDate(date)}: ${bits.length ? bits.join(", ") : "nothing recorded"}` };
+  }));
+  const months = weeks.flatMap((w, i) => { const first = w.find((c) => c.date.endsWith("-01")); return first ? [{ col: i, label: MON[Number(first.date.slice(5, 7)) - 1] }] : []; });
+  const yearAgo = addDays(today, -365);
+  const readCount = ws.jobs.filter((j) => j.extraction && j.extraction.extractor !== "case-diary-import" && ist(j.createdAt) >= yearAgo).length;
+  const ordersYear = ws.orders.filter((o) => ist(o.approvedAt) >= yearAgo).length;
+  const heldYear = ws.hearings.filter((h) => h.date >= yearAgo && h.date <= today && (h.status === "held" || h.status === "confirmed")).length;
+  const oldest = live.map((c) => ({ c, since: [c.createdAt.slice(0, 10), ...ws.orders.filter((o) => o.caseId === c.id && o.orderDate).map((o) => o.orderDate!)].sort()[0] })).sort((a, b) => a.since.localeCompare(b.since))[0];
+  const ageDays = oldest ? Math.round((Date.parse(today) - Date.parse(oldest.since)) / 864e5) : 0;
+  const yearStats: YearStat[] = [
+    { label: "Orders read automatically", value: String(readCount), note: "uploaded or pasted, then checked by you" },
+    { label: "Diary time saved", value: `~${Math.round(((ordersYear * MINUTES_PER_ORDER) / 60) * 10) / 10} h`, note: `${ordersYear} orders × ${MINUTES_PER_ORDER} min of writing each` },
+    { label: "Hearings attended", value: String(heldYear), note: "dates now in the past" },
+    { label: "Longest-running case", value: oldest ? (ageDays >= 365 ? `${Math.floor(ageDays / 365)} yr${ageDays >= 730 ? "s" : ""}` : `${ageDays} d`) : "–", note: oldest ? oldest.c.number : "no active cases" },
+  ];
   const table = (head: string[], rows: React.ReactNode[][]) => (
     <div className="overflow-x-auto"><table className="w-full"><thead><tr>{head.map((h) => <th key={h} className="th">{h}</th>)}</tr></thead><tbody>{rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j} className="td">{c}</td>)}</tr>)}</tbody></table></div>
   );
@@ -46,6 +76,7 @@ export default async function Reports() {
     <>
       <PageHeader eyebrow="Office" title="Reports" subtitle={`Operational reports from stored records, as of ${formatDate(today)}. No outcome predictions or risk scores.`} actions={<PrintButton />} />
       <PulseTiles tiles={tiles} />
+      <YearInPractice weeks={weeks} stats={yearStats} months={months} />
       <HearingRiver days={river} />
       <div className="mb-4 grid gap-4 lg:grid-cols-3">
         <StageDonut data={[...byStage.entries()].sort((a, b) => b[1] - a[1]).map(([label, n]) => ({ label, n }))} />

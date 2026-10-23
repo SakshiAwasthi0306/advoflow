@@ -6,6 +6,7 @@ import { addDays, formatDate, isValidISODate, todayIST } from "@/lib/dates";
 import { Badge, Card, EmptyState, Notice, PageHeader } from "@/components/ui";
 import { HearingBadge } from "@/components/status";
 import { cx } from "@/components/ui";
+import { CalendarDrag } from "@/components/delight";
 
 export const metadata = { title: "Hearings" };
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -18,7 +19,7 @@ function chip(i: CalendarItem) {
     : "border-neutral-line bg-neutral-soft text-neutral line-through";
   const prefix = i.kind === "deadline" ? "Due" : i.status === "confirmed" ? "Hearing" : i.status === "awaiting_verification" ? "Unconfirmed" : i.status === "held" ? "Held" : "Superseded";
   return (
-    <Link key={i.kind + i.id} href={`/cases/${i.caseId}?tab=${i.kind === "deadline" ? "tasks" : "orders"}`} className={cx("cal-chip block truncate rounded border px-1.5 py-0.5 text-[11px]", style)} title={`${prefix}: ${i.caseNumber} – ${i.title}`}>
+    <Link key={i.kind + i.id} href={`/cases/${i.caseId}?tab=${i.kind === "deadline" ? "tasks" : "orders"}`} draggable={i.kind === "deadline" && i.status === "open" ? true : undefined} data-task={i.kind === "deadline" && i.status === "open" ? i.id : undefined} data-due={i.kind === "deadline" ? i.date : undefined} data-no-peek className={cx("cal-chip block truncate rounded border px-1.5 py-0.5 text-[11px]", style)} title={`${prefix}: ${i.caseNumber} – ${i.title}`}>
       <span className="font-semibold">{prefix}</span> {i.caseNumber}
     </Link>
   );
@@ -133,7 +134,7 @@ export default async function Calendar({ searchParams }: { searchParams: Record<
               const inMonth = view === "week" || d.slice(0, 7) === monthStart.slice(0, 7);
               const list = byDate.get(d) ?? [];
               return (
-                <div key={d} style={{ "--r": Math.floor(idx / 7), "--c": idx % 7, "--heat": list.length / heatMax } as React.CSSProperties} className={cx("cal-cell border-b border-r border-line p-1.5", view === "week" ? "min-h-[220px]" : "min-h-[104px]", !inMonth && "bg-paper/60", idx % 7 >= 5 && "cal-weekend")}>
+                <div key={d} data-date={d} style={{ "--r": Math.floor(idx / 7), "--c": idx % 7, "--heat": list.length / heatMax } as React.CSSProperties} className={cx("cal-cell border-b border-r border-line p-1.5", view === "week" ? "min-h-[220px]" : "min-h-[104px]", !inMonth && "bg-paper/60", idx % 7 >= 5 && "cal-weekend")}>
                   <div className={cx("mb-1 text-xs", d === today ? "cal-today inline-grid h-6 w-6 place-items-center rounded-full bg-navy-900 font-semibold text-surface" : inMonth ? "text-ink" : "text-muted")}>{Number(d.slice(8))}</div>
                   <div className="space-y-1">{list.slice(0, view === "week" ? 12 : 3).map(chip)}{list.length > (view === "week" ? 12 : 3) && <Link href={q({ view: "agenda", d })} className="text-[11px] text-navy-800">+{list.length - 3} more</Link>}</div>
                 </div>
@@ -142,6 +143,8 @@ export default async function Calendar({ searchParams }: { searchParams: Record<
           </div>
         </div>
       )}
+      <CalendarDrag />
+      {view !== "agenda" && <p className="mt-3 hidden text-xs text-muted sm:block">Tip: drag a <span className="font-medium text-warn">Due</span> deadline to another day to move it. Hearing dates only change through a court order.</p>}
       <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted" aria-label="Legend">
         <span className="rounded border border-navy-100 bg-navy-50 px-1.5 text-navy-900">Hearing = confirmed</span>
         <span className="rounded border border-dashed border-neutral-line px-1.5">Unconfirmed = awaiting verification</span>

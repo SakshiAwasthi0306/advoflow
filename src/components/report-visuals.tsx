@@ -213,3 +213,60 @@ export function RankBars({ title, rows, tone, unit, empty }: { title: string; ro
     </section>
   );
 }
+
+/* ---------- Year in practice: a year of work, one square per day ---------- */
+
+export interface YearCell { date: string; n: number; future: boolean; label: string }
+export interface YearStat { label: string; value: string; note: string }
+
+// Written out in full so the stylesheet keeps every level.
+const YIP = ["yip-l0", "yip-l1", "yip-l2", "yip-l3", "yip-l4"];
+
+export function YearInPractice({ weeks, stats, months }: { weeks: YearCell[][]; stats: YearStat[]; months: { col: number; label: string }[] }) {
+  const on = useMounted();
+  const [hover, setHover] = useState<YearCell | null>(null);
+  const max = Math.max(1, ...weeks.flat().map((c) => c.n));
+  const level = (n: number) => (n === 0 ? 0 : Math.min(4, Math.ceil((n / max) * 4)));
+  const total = weeks.flat().reduce((s, c) => s + c.n, 0);
+  return (
+    <section className="card yip mb-5 overflow-hidden p-4 sm:p-5" aria-labelledby="yip-title">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <div className="kicker mb-1">Your year in practice</div>
+          <h2 id="yip-title" className="display text-[22px] font-semibold leading-tight">{total} things done in the last 12 months</h2>
+        </div>
+        <p className="text-xs text-muted" aria-live="polite">{hover ? hover.label : "Point at a day to see what happened."}</p>
+      </div>
+      <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+        {stats.map((s, i) => (
+          <div key={s.label} className="yip-stat rounded-xl border border-line bg-paper/60 p-3" style={{ animationDelay: `${200 + i * 90}ms` }}>
+            <div className="display num text-[24px] font-semibold leading-none text-gradient">{s.value}</div>
+            <div className="mt-1.5 text-[12.5px] font-medium">{s.label}</div>
+            <div className="text-[11px] text-muted">{s.note}</div>
+          </div>
+        ))}
+      </div>
+      <div className="overflow-x-auto pb-1">
+        <div className="relative min-w-[700px] pl-7 pt-4">
+          {months.map((m) => <span key={m.col} className="absolute top-0 text-[10px] text-muted" style={{ left: 28 + m.col * 13 }}>{m.label}</span>)}
+          {["Mon", "", "Wed", "", "Fri", "", ""].map((d, i) => <span key={i} className="absolute left-0 text-[9.5px] text-muted" style={{ top: 16 + i * 13 }}>{d}</span>)}
+          <div className="flex gap-[3px]">
+            {weeks.map((w, wi) => (
+              <div key={wi} className="flex flex-col gap-[3px]">
+                {w.map((c) => (
+                  <button
+                    key={c.date} type="button" aria-label={c.label} disabled={c.future}
+                    onMouseEnter={() => setHover(c)} onFocus={() => setHover(c)} onMouseLeave={() => setHover(null)}
+                    className={`yip-cell ${c.future ? "yip-lx" : YIP[level(c.n)]} h-[10px] w-[10px] rounded-[2.5px]`}
+                    style={{ transitionDelay: on ? `${wi * 14}ms` : "0ms", opacity: on ? 1 : 0, transform: on ? "scale(1)" : "scale(.3)" }}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 flex items-center justify-end gap-1 text-[10px] text-muted">Less{[0, 1, 2, 3, 4].map((l) => <span key={l} className={`${YIP[l]} h-[10px] w-[10px] rounded-[2.5px]`} />)}More</div>
+        </div>
+      </div>
+    </section>
+  );
+}

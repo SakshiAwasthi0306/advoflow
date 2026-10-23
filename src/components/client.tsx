@@ -3,16 +3,18 @@
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { CheckCircle2, Copy, X, XCircle } from "lucide-react";
+import { play, type SoundKind } from "@/lib/sound";
 
 // ---- Toasts -------------------------------------------------------------------
 type ToastT = { id: number; text: string; tone: "ok" | "error" };
-const ToastCtx = createContext<(text: string, tone?: ToastT["tone"]) => void>(() => undefined);
+const ToastCtx = createContext<(text: string, tone?: ToastT["tone"], sound?: SoundKind) => void>(() => undefined);
 export const useToast = () => useContext(ToastCtx);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ToastT[]>([]);
-  const push = useCallback((text: string, tone: ToastT["tone"] = "ok") => {
+  const push = useCallback((text: string, tone: ToastT["tone"] = "ok", sound?: SoundKind) => {
     const id = Date.now() + Math.random();
+    play(sound ?? (tone === "ok" ? "tick" : "error"));
     setItems((x) => [...x, { id, text, tone }]);
     setTimeout(() => setItems((x) => x.filter((t) => t.id !== id)), 5000);
   }, []);

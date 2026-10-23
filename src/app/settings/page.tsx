@@ -4,6 +4,7 @@ import { Badge, Card, Notice, PageHeader } from "@/components/ui";
 import { ActionButton } from "@/components/client";
 import { LogoutButton } from "@/components/logout";
 import { DiaryImport } from "@/components/diary-import";
+import { SoundToggle } from "@/components/delight";
 
 export const metadata = { title: "Settings" };
 
@@ -19,6 +20,7 @@ export default async function Settings() {
           <ul className="divide-y divide-line text-sm">{rows.map(([k, v]) => <li key={k} className="flex flex-wrap items-center justify-between gap-2 py-2"><span className="font-medium">{k}</span><span className="flex items-center gap-2 text-right text-muted">{v.label}{v.live ? <Badge tone="ok">Live</Badge> : <Badge tone="neutral">Not live</Badge>}</span></li>)}</ul>
           <p className="mt-3 text-xs text-muted">Configure these with environment variables on the server (see README). API keys are never sent to the browser.</p>
         </Card>
+        <Card title="Feel"><SoundToggle /></Card>
         <Card title="Demo workspace">
           <p className="mb-3 text-sm text-muted">Fictional cases, orders, clients and research, all labelled Demo. Removing them leaves anything you created.</p>
           {session.role !== "owner" ? <p className="text-sm text-muted">Only the office owner can load or remove demo data.</p> : ws.demoLoaded

@@ -3,11 +3,13 @@ import { Hanken_Grotesk, IBM_Plex_Mono, Instrument_Sans } from "next/font/google
 import "./globals.css";
 import { ToastProvider } from "@/components/client";
 import { Motion } from "@/components/motion";
+import { CasePeek, CommandPalette, type PeekCase } from "@/components/delight";
 import { Shell, type Alert } from "@/components/shell";
 import { getSession } from "@/lib/session";
 import { getStore } from "@/lib/store";
 import { loadWorkspace } from "@/lib/services/workspace";
-import { dashboard } from "@/lib/services/queries";
+import { caseSummary, dashboard } from "@/lib/services/queries";
+import { formatDate, todayIST } from "@/lib/dates";
 import { config } from "@/lib/config";
 
 export const metadata: Metadata = { title: { default: "AdvoFlow", template: "%s · AdvoFlow" }, description: "Court diary, order review and legal research for advocates" };
@@ -38,6 +40,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     ...d.tomorrowHearings.map((h) => ({ text: `Hearing tomorrow: ${num(h.caseId)}${h.purpose ? ` – ${h.purpose}` : ""}`, href: `/cases/${h.caseId}`, tone: "warn" as const })),
     ...d.dueToday.map((t) => ({ text: `Due today: ${t.title}`, href: `/cases/${t.caseId}?tab=tasks`, tone: "warn" as const })),
   ];
+  // Light case summaries for the command palette and hover previews.
+  const today = todayIST();
+  const peek: PeekCase[] = ws.cases.filter((c) => c.status !== "archived").slice(0, 500).map((c) => {
+    const s = caseSummary(ws, c, today);
+    const h = s.hearing && s.hearing.date >= today ? s.hearing : null;
+    return { id: c.id, number: c.number, title: c.title, court: c.court, stage: c.stage, next: h ? { date: h.date, label: h.date === today ? "Today" : formatDate(h.date).replace(/ \d{4}$/, ""), confirmed: h.status === "confirmed" } : null, open: s.openTasks, overdue: s.overdue };
+  });
   const notes: string[] = [];
   if (config.authMode === "demo") notes.push(config.databaseUrl ? "Open demo: no login, anyone with the link sees and can change this data" : "Demo mode: no login, data stored on this machine only");
   if (config.aiProvider === "rules") notes.push("AI not connected (rule-based extraction)");
@@ -50,7 +59,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <Shell office={ws.office.name} user={session.name} role={session.role} alerts={alerts} reviewCount={d.awaitingReview.length} modeNote={notes.length ? notes.join(" · ") : null}>
             {children}
           </Shell>
+          <CommandPalette cases={peek} />
         </ToastProvider>
+        <CasePeek cases={peek} />
         <Motion />
       </body>
     </html>

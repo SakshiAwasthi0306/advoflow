@@ -7,6 +7,7 @@ import { AIBadge, Badge, Card, DemoBadge, Notice, PageHeader } from "@/component
 import { JobBadge } from "@/components/status";
 import { ActionButton } from "@/components/client";
 import { ReviewForm } from "@/components/review-form";
+import { OrderReveal, type RevealFact } from "@/components/order-reveal";
 import type { OrderDetails } from "@/lib/types";
 
 export const metadata = { title: "Review order" };
@@ -19,6 +20,13 @@ export default async function Review({ params }: { params: { id: string } }) {
   const ex = job.extraction;
   const order = job.resultOrderId ? ws.orders.find((o) => o.id === job.resultOrderId) : null;
   const readOnly = job.status === "approved" || job.status === "rejected";
+  const FACTS = [["caseNumber", "Case number"], ["title", "Parties"], ["court", "Court"], ["orderDate", "Order date"], ["nextHearingDate", "Next hearing"], ["stage", "Stage"], ["adjourned", "Adjourned"], ["costs", "Costs"], ["summary", "What happened"]] as const;
+  const facts: RevealFact[] = ex ? FACTS.flatMap(([k, label]) => {
+    const f = ex[k] as { value: unknown; source: string | null };
+    if (!f?.source || f.value === null || f.value === undefined) return [];
+    const value = typeof f.value === "boolean" ? (f.value ? "yes" : "no") : /^\d{4}-\d{2}-\d{2}$/.test(String(f.value)) ? formatDate(String(f.value)) : String(f.value).slice(0, 48);
+    return [{ key: k, label, value, source: f.source }];
+  }) : [];
   return (
     <>
       <PageHeader
@@ -48,7 +56,7 @@ export default async function Review({ params }: { params: { id: string } }) {
           {doc?.textExtract ? (
             <>
               <div className="mb-1 flex items-center gap-2 text-xs text-muted">Text {doc.textSource === "ocr" ? <Badge tone="warn">read by OCR — check carefully</Badge> : doc.textSource === "pdf_text" ? "from the PDF's text layer" : "as pasted"}</div>
-              <pre className="max-h-[560px] overflow-auto whitespace-pre-wrap rounded-lg bg-paper p-3 font-mono text-[12.5px] leading-relaxed">{doc.textExtract}</pre>
+              <OrderReveal jobId={job.id} text={doc.textExtract} facts={facts} play={job.status === "needs_review"} />
             </>
           ) : <p className="text-sm text-muted">No text could be extracted. Open the original to read it.</p>}
         </Card>

@@ -4,6 +4,7 @@ import { formatDate, todayIST } from "@/lib/dates";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { DueBadge } from "@/components/status";
 import { AddTaskForm, RescheduleActions, TaskEdit, TaskToggle } from "@/components/widgets";
+import { SwipeTask } from "@/components/delight";
 
 export const metadata = { title: "Tasks" };
 const FILTERS = [["open", "All open"], ["overdue", "Overdue"], ["today", "Due today"], ["upcoming", "Upcoming"], ["nodate", "No date"], ["done", "Completed"]] as const;
@@ -42,11 +43,13 @@ export default async function Tasks({ searchParams }: { searchParams: { filter?:
       </div>
       {tasks.length ? (
         <Card>
+          <p className="mb-1 text-xs text-muted sm:hidden">Swipe a task right to finish it, or left to push it a day.</p>
           <ul className="divide-y divide-line">
             {tasks.map((t) => {
               const c = caseOf(t.caseId);
               return (
-                <li key={t.id} className="flex gap-3 py-3">
+                <li key={t.id}>{(() => { const row = (
+                <div className="flex gap-3 py-3">
                   <TaskToggle key={t.id} id={t.id} done={t.status === "done"} title={t.title} />
                   <div className="min-w-0 flex-1">
                     <div className={t.status === "done" ? "text-muted line-through" : "font-medium"}>{t.title}</div>
@@ -62,6 +65,8 @@ export default async function Tasks({ searchParams }: { searchParams: { filter?:
                     {t.needsReschedule && t.status === "open" && <div className="mt-2 rounded-lg border border-warn-line bg-warn-soft p-2 text-sm"><div className="mb-1 font-medium text-warn">Hearing moved from {formatDate(t.needsReschedule.from)} to {formatDate(t.needsReschedule.to)}.</div><RescheduleActions id={t.id} from={t.needsReschedule.from} to={t.needsReschedule.to} /></div>}
                     {t.status === "open" && <TaskEdit key={`${t.id}:${t.title}:${t.dueDate}:${t.priority}`} id={t.id} title={t.title} dueDate={t.dueDate} priority={t.priority} />}
                   </div>
+                </div>);
+                return t.status === "open" ? <SwipeTask id={t.id} dueDate={t.dueDate} today={today}>{row}</SwipeTask> : row; })()}
                 </li>
               );
             })}

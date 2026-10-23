@@ -92,11 +92,19 @@ export function AIBadge({ children = "AI draft · not verified" }: { children?: 
 }
 
 const EMPTY_ART = (
-  <svg viewBox="0 0 64 48" className="h-12 w-16" aria-hidden>
-    <rect x="10" y="8" width="40" height="32" rx="3" fill="rgb(var(--c-surface))" stroke="rgb(var(--c-line))" />
-    <path d="M17 17h20M17 23h26M17 29h14" stroke="rgb(var(--c-line))" strokeWidth="2" strokeLinecap="round" />
-    <circle cx="48" cy="34" r="7" fill="rgb(var(--c-paper))" stroke="rgb(var(--c-navy-700))" strokeOpacity=".5" />
-    <path d="m45.2 34 2 2 3.8-4" fill="none" stroke="rgb(var(--c-navy-700))" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  <svg viewBox="0 0 96 72" className="empty-art h-[72px] w-24" aria-hidden>
+    <ellipse className="empty-shadow" cx="46" cy="66" rx="26" ry="3" fill="rgb(var(--c-line))" />
+    <g className="empty-float">
+      <rect x="22" y="14" width="44" height="40" rx="4" fill="rgb(var(--c-paper))" stroke="rgb(var(--c-line))" transform="rotate(-6 44 34)" />
+      <rect x="26" y="10" width="44" height="42" rx="4" fill="rgb(var(--c-surface))" stroke="rgb(var(--c-neutral-line))" />
+      <path className="empty-lines" d="M33 21h24M33 28h30M33 35h18" stroke="rgb(var(--c-navy-100))" strokeWidth="2.5" strokeLinecap="round" />
+    </g>
+    <g className="empty-gavel">
+      <rect x="62" y="40" width="20" height="9" rx="2" fill="rgb(var(--c-accent))" transform="rotate(-35 72 44)" />
+      <rect x="70" y="47" width="3.5" height="18" rx="1.5" fill="rgb(var(--c-navy-700))" transform="rotate(-35 72 56)" />
+    </g>
+    <circle className="empty-spark" cx="84" cy="22" r="2" fill="rgb(var(--c-accent))" />
+    <circle className="empty-spark empty-spark-2" cx="16" cy="30" r="1.5" fill="rgb(var(--c-ai))" />
   </svg>
 );
 

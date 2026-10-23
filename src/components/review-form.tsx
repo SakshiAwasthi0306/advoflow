@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { CalendarCheck2, ListChecks, MessageSquareText, NotebookTabs } from "lucide-react";
 import type { CaseMatch, Extraction, FieldStatus } from "@/lib/types";
 import { api, useToast } from "./client";
 
@@ -40,6 +41,7 @@ export function ReviewForm({ jobId, ex, match, cases, readOnly }: { jobId: strin
   const [busy, setBusy] = useState<"" | "approve" | "reject">("");
   const [error, setError] = useState<string | null>(null);
   const [armedReject, setArmedReject] = useState(false);
+  const [burst, setBurst] = useState<null | { hearing: string | null; tasks: number }>(null);
 
   const set = (k: FieldKey, patch: Partial<{ approved: boolean; value: string | boolean | null }>) => setFields({ ...fields, [k]: { ...fields[k], ...patch } });
 
@@ -58,7 +60,12 @@ export function ReviewForm({ jobId, ex, match, cases, readOnly }: { jobId: strin
         tasks: tasks.map(({ key, approved, title, dueDate, priority }) => ({ key, approved, title, dueDate: dueDate || null, priority })),
       };
       const r = await api<{ caseId: string; alreadyApproved: boolean }>(`/api/jobs/${jobId}`, "POST", { action: "approve", input });
-      toast(r.alreadyApproved ? "This order was already approved — nothing was duplicated." : "Order confirmed. Case, hearing, tasks and client drafts updated.");
+      toast(r.alreadyApproved ? "This order was already approved — nothing was duplicated." : "Order confirmed. Case, hearing, tasks and client drafts updated.", "ok", r.alreadyApproved ? "tick" : "chime");
+      // Show where the confirmation went before moving on: the diary, the hearing, the tasks and the client drafts.
+      if (!r.alreadyApproved && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        setBurst({ hearing: fields.nextHearingDate.approved ? (fields.nextHearingDate.value as string | null) : null, tasks: tasks.filter((t) => t.approved).length });
+        await new Promise((res) => setTimeout(res, 1900));
+      }
       router.push(`/cases/${r.caseId}?tab=orders`);
       router.refresh();
     } catch (e) {
@@ -84,7 +91,9 @@ export function ReviewForm({ jobId, ex, match, cases, readOnly }: { jobId: strin
   }
 
   return (
-    <fieldset disabled={readOnly} className="space-y-5">
+    <>
+    {burst && <ConfirmBurst hearing={burst.hearing} tasks={burst.tasks} />}
+    <fieldset disabled={readOnly} className="min-w-0 space-y-5">
       <section>
         <h3 className="mb-2 text-sm font-semibold">1. Which case is this?</h3>
         {match?.kind === "ambiguous" && <p className="mb-2 rounded-lg border border-warn-line bg-warn-soft px-3 py-2 text-sm text-warn">The case match is unclear. AdvoFlow will not merge it on its own — choose the correct case or create a new one.</p>}
@@ -126,7 +135,7 @@ export function ReviewForm({ jobId, ex, match, cases, readOnly }: { jobId: strin
             const f = src(k);
             const v = fields[k];
             return (
-              <div key={k} className={`grid gap-2 p-3.5 sm:grid-cols-[170px_1fr] ${f.status === "inferred" ? "bg-ai-soft/60" : k === "nextHearingDate" ? "bg-navy-50/50" : ""}`}>
+              <div key={k} data-field={k} className={`rv-row grid gap-2 p-3.5 sm:grid-cols-[170px_1fr] ${f.status === "inferred" ? "bg-ai-soft/60" : k === "nextHearingDate" ? "bg-navy-50/50" : ""}`}>
                 <div className="flex items-start gap-2">
                   <input id={`ap-${k}`} type="checkbox" className="mt-1 accent-navy-900" checked={v.approved} onChange={(e) => set(k, { approved: e.target.checked })} />
                   <label htmlFor={`ap-${k}`} className="text-sm font-medium">{LABELS[k]}<span className="mt-1 block"><StatusTag s={f.status} /></span></label>
@@ -182,5 +191,34 @@ export function ReviewForm({ jobId, ex, match, cases, readOnly }: { jobId: strin
         </div>
       )}
     </fieldset>
+    </>
+  );
+}
+
+/** One confirmation, four records: they fan out from the centre to show everything that was updated. */
+function ConfirmBurst({ hearing, tasks }: { hearing: string | null; tasks: number }) {
+  const fmt = (d: string) => new Date(d + "T00:00:00Z").toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" });
+  const items = [
+    { icon: NotebookTabs, label: "Case diary", sub: "order added to the timeline", x: -1, y: -1 },
+    { icon: CalendarCheck2, label: "Hearing", sub: hearing ? `next date ${fmt(hearing)}` : "no new date", x: 1, y: -1 },
+    { icon: ListChecks, label: "Tasks", sub: tasks ? `${tasks} created` : "none created", x: -1, y: 1 },
+    { icon: MessageSquareText, label: "Client drafts", sub: "ready to send", x: 1, y: 1 },
+  ];
+  return (
+    <div className="cb-wrap fixed inset-0 z-[80] grid place-items-center" role="status" aria-live="assertive">
+      <div className="cb-backdrop absolute inset-0 bg-navy-950/55 backdrop-blur-sm" />
+      <div className="relative h-[320px] w-[min(92vw,560px)]">
+        <div className="cb-core absolute left-1/2 top-1/2 grid h-24 w-24 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-gradient-to-b from-accent to-navy-800 text-white shadow-glow">
+          <svg viewBox="0 0 24 24" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path className="cb-check" d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+        </div>
+        {items.map((it, i) => (
+          <div key={it.label} className="cb-item card-raised absolute left-1/2 top-1/2 flex w-[200px] items-center gap-2.5 px-3 py-2.5" style={{ "--tx": `${it.x * 150}px`, "--ty": `${it.y * 105}px`, animationDelay: `${300 + i * 110}ms` } as React.CSSProperties}>
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent"><it.icon className="h-4 w-4" aria-hidden /></span>
+            <span className="min-w-0 text-left"><span className="block text-sm font-semibold">{it.label} ✓</span><span className="block truncate text-xs text-muted">{it.sub}</span></span>
+          </div>
+        ))}
+        <p className="cb-caption absolute inset-x-0 bottom-0 text-center text-sm font-medium text-white">Confirmed. Everything is up to date.</p>
+      </div>
+    </div>
   );
 }

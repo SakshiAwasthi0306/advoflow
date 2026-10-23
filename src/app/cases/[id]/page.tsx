@@ -6,6 +6,7 @@ import { caseSummary } from "@/lib/services/queries";
 import { formatDate, todayIST } from "@/lib/dates";
 import { AIBadge, Badge, Card, DateBlock, DemoBadge, EmptyState, KeyVal, Notice, Tabs } from "@/components/ui";
 import { AddHearing } from "@/components/quick-actions";
+import { CaseTimeline } from "@/components/case-timeline";
 import { actionText } from "@/lib/activity";
 import { DueBadge, HearingBadge, JobBadge } from "@/components/status";
 import { ActionButton } from "@/components/client";
@@ -76,6 +77,7 @@ export default async function CaseWorkspace({ params, searchParams }: { params: 
           {c.status !== "archived" && <ActionButton url={`/api/cases/${c.id}/status`} body={{ status: "archived" }} className="btn-ghost" confirmText="Click again to archive" success="Case archived">Archive</ActionButton>}
         </div>
       </header>
+      <CaseTimeline c={c} orders={orders} hearings={hearings} changes={changes} nextHearing={s.hearing} today={today} />
       {pendingJobs.length > 0 && <div className="ai-draft mb-5 flex flex-wrap items-center gap-3 px-4 py-3 text-sm"><AIBadge>Order drafted · waiting for you</AIBadge><span className="text-ink/80">Nothing from it is saved to this case until you check and confirm it.</span>{pendingJobs.map((j) => <Link key={j.id} href={`/review/${j.id}`} className="link ml-auto font-medium">Check the draft →</Link>)}</div>}
       <Tabs active={tab} tabs={[
         { key: "overview", label: "Overview", href: base + "overview" },

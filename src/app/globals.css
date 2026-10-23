@@ -285,6 +285,88 @@
 @keyframes cal-today { 70% { box-shadow: 0 0 0 9px rgb(var(--c-accent) / 0); } 100% { box-shadow: 0 0 0 0 rgb(var(--c-accent) / 0); } }
 @keyframes cal-grow { from { transform: scaleY(0); } }
 
+/* Command palette, case previews, order reveal, confirmation burst, timeline, year grid, empty states,
+   the Today scene, streak, drag and swipe. */
+@layer components {
+  .kp-backdrop { animation: af-fade 180ms ease-out both; }
+  .kp-panel { animation: kp-in 260ms cubic-bezier(.2, 1.1, .3, 1) both; box-shadow: 0 30px 80px -20px rgb(10 37 64 / .55); }
+  .kp-item { transition: background-color 120ms; }
+  .kp-on { background: rgb(var(--c-accent) / .1); }
+  .kp-on > span:first-child { background: rgb(var(--c-accent)); color: rgb(var(--c-surface)); }
+  .kp-peek { animation: kp-in 200ms cubic-bezier(.2, 1.1, .3, 1) both; box-shadow: 0 18px 44px -14px rgb(10 37 64 / .45); }
+
+  .rv-mark { background: linear-gradient(rgb(var(--c-accent) / .22), rgb(var(--c-accent) / .22)) no-repeat 0 100% / 0% 100%; color: inherit; border-radius: 3px; position: relative; cursor: pointer; transition: background-size 500ms cubic-bezier(.2, .8, .2, 1), box-shadow 200ms; }
+  .rv-mark.rv-on { background-size: 100% 100%; }
+  .rv-mark:hover, .rv-mark.rv-hot { box-shadow: 0 0 0 2px rgb(var(--c-accent) / .55); background-color: rgb(var(--c-accent) / .18); }
+  .rv-tag { position: absolute; left: 0; bottom: calc(100% + 4px); z-index: 2; white-space: nowrap; font: 600 11px/1 var(--font-sans), sans-serif; color: white; background: rgb(var(--c-accent)); padding: 4px 7px; border-radius: 6px; animation: rv-tag 1.1s cubic-bezier(.2, .8, .2, 1) both; pointer-events: none; }
+  .rv-scan { background-image: linear-gradient(180deg, transparent, rgb(var(--c-ai) / .12) 50%, transparent); background-size: 100% 60px; background-repeat: no-repeat; animation: rv-scan 1.6s linear infinite; }
+  .af-revealing .rv-row[style*="--rv-i"] { animation: rv-flash 900ms ease-out backwards; animation-delay: calc(700ms + var(--rv-i) * 520ms + 250ms); }
+  .rv-ping { animation: rv-flash 900ms ease-out; }
+
+  .cb-backdrop { animation: af-fade 250ms ease-out both; }
+  .cb-core { animation: cb-pop 520ms cubic-bezier(.2, 1.5, .4, 1) both; }
+  .cb-check { stroke-dasharray: 24; stroke-dashoffset: 24; animation: cb-draw 420ms 220ms ease-out forwards; }
+  .cb-item { transform: translate(-50%, -50%) scale(.4); opacity: 0; animation: cb-fly 650ms cubic-bezier(.2, 1.2, .3, 1) forwards; }
+  .cb-caption { animation: af-fade 400ms 900ms both; }
+
+  .tl-fill { background: linear-gradient(90deg, rgb(var(--c-navy-100)), rgb(var(--c-accent))); transform-origin: left; animation: tl-grow 1100ms cubic-bezier(.2, .8, .2, 1) both; }
+  .tl-ev { animation: af-fade 400ms ease-out backwards; }
+  .tl-dot { transition: scale 200ms; }
+  .tl-ev:hover .tl-dot, .tl-dot:focus-visible { scale: 1.4; }
+  .tl-next { box-shadow: 0 0 0 4px rgb(var(--c-surface)), 0 0 0 0 rgb(var(--c-accent) / .6); animation: tl-beacon 2s ease-out infinite; }
+
+  .yip-cell { transition: opacity 400ms ease, transform 500ms cubic-bezier(.2, 1.4, .4, 1), outline-color 150ms; outline: 1.5px solid transparent; outline-offset: 1px; }
+  .yip-cell:hover, .yip-cell:focus-visible { outline-color: rgb(var(--c-ink) / .6); }
+  .yip-l0 { background: rgb(var(--c-line) / .8); } .yip-l1 { background: rgb(var(--c-accent) / .3); } .yip-l2 { background: rgb(var(--c-accent) / .55); }
+  .yip-l3 { background: rgb(var(--c-accent) / .8); } .yip-l4 { background: linear-gradient(135deg, rgb(var(--c-accent)), rgb(20 170 160)); } .yip-lx { background: transparent; border: 1px dashed rgb(var(--c-line)); }
+  .yip-stat { animation: af-enter 600ms cubic-bezier(.2, .8, .2, 1) backwards; }
+  .yip { background-image: radial-gradient(600px 200px at 100% 0%, rgb(var(--c-accent) / .07), transparent 70%); }
+
+  .empty-float { animation: empty-float 4s ease-in-out infinite; }
+  .empty-shadow { animation: empty-shadow 4s ease-in-out infinite; transform-origin: 46px 66px; }
+  .empty-gavel { transform-origin: 74px 60px; animation: empty-gavel 4s ease-in-out infinite; }
+  .empty-lines { stroke-dasharray: 40; animation: empty-lines 4s ease-in-out infinite; }
+  .empty-spark { animation: empty-spark 2.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .empty-spark-2 { animation-delay: 1.2s; }
+
+  .day-art { animation: af-enter 700ms 150ms cubic-bezier(.2, .8, .2, 1) backwards; }
+  .da-rays { animation: da-spin 30s linear infinite; }
+  .da-cloud { animation: da-drift 18s ease-in-out infinite alternate; }
+  .da-cloud-2 { animation-duration: 26s; animation-direction: alternate-reverse; }
+  .da-rise { animation: da-rise 1.6s cubic-bezier(.2, .8, .2, 1) both; }
+  .da-set { animation: da-set 1.6s cubic-bezier(.2, .8, .2, 1) both; }
+  .da-star { animation: da-twinkle 2.4s ease-in-out infinite; }
+  .da-float { animation: empty-float 6s ease-in-out infinite; }
+  .streak { animation: af-enter 600ms 400ms cubic-bezier(.2, .8, .2, 1) backwards; }
+  .streak-flame { animation: flame 1.2s ease-in-out infinite alternate; transform-origin: 50% 90%; }
+  .court-stop { animation: af-enter 500ms cubic-bezier(.2, .8, .2, 1) backwards; }
+
+  .dnd-on [data-date] { transition: background-color 150ms, box-shadow 150ms; }
+  .dnd-on [data-date].dnd-target { background-color: rgb(var(--c-warn) / .12); box-shadow: inset 0 0 0 2px rgb(var(--c-warn) / .6); }
+  .dnd-lift { opacity: .45; }
+  [data-task] { cursor: grab; }
+}
+@keyframes kp-in { from { opacity: 0; transform: translateY(-8px) scale(.97); } }
+@keyframes rv-tag { 0% { opacity: 0; transform: translateY(4px); } 15% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-6px); } }
+@keyframes rv-scan { from { background-position: 0 -60px; } to { background-position: 0 600px; } }
+@keyframes rv-flash { 0% { box-shadow: inset 0 0 0 2px rgb(var(--c-accent) / .9); background-color: rgb(var(--c-accent) / .14); } 100% { box-shadow: inset 0 0 0 2px rgb(var(--c-accent) / 0); } }
+@keyframes cb-pop { from { transform: translate(-50%, -50%) scale(0); } to { transform: translate(-50%, -50%) scale(1); } }
+@keyframes cb-draw { to { stroke-dashoffset: 0; } }
+@keyframes cb-fly { to { opacity: 1; transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1); } }
+@keyframes tl-grow { from { transform: scaleX(0); } }
+@keyframes tl-beacon { 70% { box-shadow: 0 0 0 4px rgb(var(--c-surface)), 0 0 0 12px rgb(var(--c-accent) / 0); } 100% { box-shadow: 0 0 0 4px rgb(var(--c-surface)), 0 0 0 0 rgb(var(--c-accent) / 0); } }
+@keyframes empty-float { 50% { transform: translateY(-4px); } }
+@keyframes empty-shadow { 50% { transform: scaleX(.85); opacity: .7; } }
+@keyframes empty-gavel { 0%, 70%, 100% { transform: rotate(0); } 78% { transform: rotate(-18deg); } 86% { transform: rotate(6deg); } }
+@keyframes empty-lines { 0% { stroke-dashoffset: 40; } 40%, 100% { stroke-dashoffset: 0; } }
+@keyframes empty-spark { 0%, 100% { opacity: 0; transform: scale(.4); } 50% { opacity: 1; transform: scale(1.2); } }
+@keyframes da-spin { to { transform: rotate(360deg); } }
+@keyframes da-drift { to { transform: translateX(22px); } }
+@keyframes da-rise { from { transform: translateY(26px); opacity: .4; } }
+@keyframes da-set { from { transform: translateY(-20px); } }
+@keyframes da-twinkle { 50% { opacity: .25; } }
+@keyframes flame { to { transform: scale(1.15) rotate(-6deg); } }
+
 /* People who ask for less motion get none. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
