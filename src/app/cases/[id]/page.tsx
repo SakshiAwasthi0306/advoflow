@@ -124,7 +124,7 @@ export default async function CaseWorkspace({ params, searchParams }: { params: 
           {hearings.filter((h) => h.status === "awaiting_verification").map((h) => (
             <Notice key={h.id} title={`Hearing on ${formatDate(h.date)} is awaiting your verification`}>
               <p className="mb-2">It came from an approved order but the date itself was not confirmed. Check it against the original order, correct it if needed, then confirm.</p>
-              <HearingConfirm id={h.id} date={h.date} />
+              <HearingConfirm key={`${h.id}:${h.date}`} id={h.id} date={h.date} />
             </Notice>
           ))}
           {changes.length > 0 && (
@@ -216,7 +216,7 @@ export default async function CaseWorkspace({ params, searchParams }: { params: 
               <ul className="divide-y divide-line">
                 {tasks.map((t) => (
                   <li key={t.id} className="flex gap-3 py-3">
-                    <TaskToggle id={t.id} done={t.status === "done"} title={t.title} />
+                    <TaskToggle key={t.id} id={t.id} done={t.status === "done"} title={t.title} />
                     <div className="min-w-0 flex-1">
                       <div className={t.status === "done" ? "text-muted line-through" : "font-medium"}>{t.title}</div>
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
@@ -229,10 +229,10 @@ export default async function CaseWorkspace({ params, searchParams }: { params: 
                       {t.needsReschedule && t.status === "open" && (
                         <div className="mt-2 rounded-lg border border-warn-line bg-warn-soft p-2 text-sm">
                           <div className="mb-1 font-medium text-warn">The hearing moved from {formatDate(t.needsReschedule.from)} to {formatDate(t.needsReschedule.to)}. Should this task move too?</div>
-                          <RescheduleActions id={t.id} from={t.needsReschedule.from} to={t.needsReschedule.to} />
+                          <RescheduleActions key={t.id} id={t.id} from={t.needsReschedule.from} to={t.needsReschedule.to} />
                         </div>
                       )}
-                      {t.status === "open" && <TaskEdit id={t.id} title={t.title} dueDate={t.dueDate} priority={t.priority} />}
+                      {t.status === "open" && <TaskEdit key={`${t.id}:${t.title}:${t.dueDate}:${t.priority}`} id={t.id} title={t.title} dueDate={t.dueDate} priority={t.priority} />}
                     </div>
                   </li>
                 ))}
@@ -273,8 +273,8 @@ export default async function CaseWorkspace({ params, searchParams }: { params: 
             <AIClientDraft caseId={c.id} defaultLang={client?.preferredLanguage ?? "en"} aiReady={aiReady} hasOrder={ws.orders.some((o) => o.caseId === c.id)} />
           </Card>
           {updates.length ? updates.map((u) => (
-            <Card key={u.id} title={<span className="flex flex-wrap items-center gap-2">{languageLabel(u.lang)}{u.origin === "ai" && <Badge tone="warn">AI draft — check before sending</Badge>} <span className="text-xs font-normal text-muted">{u.sourceOrderId ? orderLabel(u.sourceOrderId) : ""}</span>{u.status === "handed_off" ? <Badge tone="navy">Opened in WhatsApp</Badge> : <Badge tone="neutral">Draft</Badge>}</span>}>
-              <ClientUpdateEditor id={u.id} text={u.text} lang={u.lang} status={u.status} phone={client?.phone ?? null} waLinkBase="https://wa.me/" />
+            <Card key={u.id} title={<span className="flex flex-wrap items-center gap-2">{languageLabel(u.lang)}{u.origin === "ai" && <AIBadge>AI draft · check before sending</AIBadge>} <span className="text-xs font-normal text-muted">{u.sourceOrderId ? orderLabel(u.sourceOrderId) : ""}</span>{u.status === "handed_off" ? <Badge tone="navy">Opened in WhatsApp</Badge> : <Badge tone="neutral">Draft</Badge>}</span>}>
+              <ClientUpdateEditor key={`${u.id}:${u.updatedAt}`} id={u.id} text={u.text} lang={u.lang} status={u.status} phone={client?.phone ?? null} waLinkBase="https://wa.me/" />
               {u.checkText && <details className="mt-2 text-sm"><summary className="cursor-pointer text-muted">What this says in English</summary><p className="mt-1 rounded-lg bg-paper p-2">{u.checkText}</p></details>}
             </Card>
           )) : <EmptyState title="No client updates yet" body="An English draft (and Kannada, when the client prefers it) is created each time you approve an order. Use “Draft in another language” for any other language." />}

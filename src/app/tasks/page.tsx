@@ -47,7 +47,7 @@ export default async function Tasks({ searchParams }: { searchParams: { filter?:
               const c = caseOf(t.caseId);
               return (
                 <li key={t.id} className="flex gap-3 py-3">
-                  <TaskToggle id={t.id} done={t.status === "done"} title={t.title} />
+                  <TaskToggle key={t.id} id={t.id} done={t.status === "done"} title={t.title} />
                   <div className="min-w-0 flex-1">
                     <div className={t.status === "done" ? "text-muted line-through" : "font-medium"}>{t.title}</div>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
@@ -60,7 +60,7 @@ export default async function Tasks({ searchParams }: { searchParams: { filter?:
                       {t.completedAt && <span>Completed {formatDate(t.completedAt.slice(0, 10))}</span>}
                     </div>
                     {t.needsReschedule && t.status === "open" && <div className="mt-2 rounded-lg border border-warn-line bg-warn-soft p-2 text-sm"><div className="mb-1 font-medium text-warn">Hearing moved from {formatDate(t.needsReschedule.from)} to {formatDate(t.needsReschedule.to)}.</div><RescheduleActions id={t.id} from={t.needsReschedule.from} to={t.needsReschedule.to} /></div>}
-                    {t.status === "open" && <TaskEdit id={t.id} title={t.title} dueDate={t.dueDate} priority={t.priority} />}
+                    {t.status === "open" && <TaskEdit key={`${t.id}:${t.title}:${t.dueDate}:${t.priority}`} id={t.id} title={t.title} dueDate={t.dueDate} priority={t.priority} />}
                   </div>
                 </li>
               );

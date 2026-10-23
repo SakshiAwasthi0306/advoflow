@@ -140,6 +140,7 @@ export function HearingConfirm({ id, date }: { id: string; date: string }) {
 export function ClientUpdateEditor({ id, text, lang, status, phone, waLinkBase }: { id: string; text: string; lang: string; status: string; phone: string | null; waLinkBase: string }) {
   const router = useRouter();
   const toast = useToast();
+  // One editor per message version (the page keys it by id + updatedAt), so it never shows another message's text.
   const [t, setT] = useState(text);
   const dirty = t !== text;
   const digits = (phone ?? "").replace(/\D/g, "");
