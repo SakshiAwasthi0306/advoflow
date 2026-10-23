@@ -126,3 +126,12 @@ describe("OpenRouter adapter", () => {
     expect(h.fetch).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("provider error text in the log", () => {
+  it("is short and scrubbed of keys and emails", async () => {
+    const { providerDetail } = await import("@/lib/ai/client");
+    const d = providerDetail(new Error("Invalid schema for key sk-or-v1-abcdef0123456789 sent by someone@example.com: " + "x".repeat(400)))!;
+    expect(d).not.toMatch(/sk-or-v1-abc|someone@example\.com/);
+    expect(d.length).toBeLessThanOrEqual(300);
+  });
+});

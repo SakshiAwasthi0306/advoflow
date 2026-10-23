@@ -40,6 +40,16 @@ export interface AttemptResult {
   thoughtsTokens: number | null;
 }
 export type Classified = { kind: AIErrorKind; retry: boolean; code: string };
+
+/** The provider's own error text, for the server log only: short, and scrubbed of anything that looks like a key or an email. */
+export function providerDetail(e: unknown): string | undefined {
+  const m = (e as { message?: unknown })?.message;
+  if (typeof m !== "string" || !m) return undefined;
+  return m
+    .replace(/sk-[A-Za-z0-9_-]{8,}|AIza[0-9A-Za-z_-]{20,}|Bearer\s+\S+/g, "[redacted]")
+    .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "[email]")
+    .slice(0, 300);
+}
 export type Attempt = (args: GenerateArgs & { model: string; signal: AbortSignal; timeoutMs: number }) => Promise<AttemptResult>;
 
 const MAX_ATTEMPTS = 2; // one retry, and only for transient failures (overload, network, timeout)
@@ -88,7 +98,7 @@ export async function generate(args: GenerateArgs): Promise<GenerateResult> {
       if (e instanceof AIError && (e.kind === "blocked" || e.kind === "invalid_output" || e.kind === "not_configured")) throw e;
       const c = p.classify(e);
       last = c;
-      logger.warn("ai.call_failed", { task: args.task, requestId: args.requestId, provider: p.name, model: p.model, attempt, ms: Date.now() - t0, kind: c.kind, code: c.code });
+      logger.warn("ai.call_failed", { task: args.task, requestId: args.requestId, provider: p.name, model: p.model, attempt, ms: Date.now() - t0, kind: c.kind, code: c.code, providerMessage: providerDetail(e) });
       const timeLeft = (args.deadlineAt ?? Infinity) - Date.now();
       if (!c.retry || attempt === MAX_ATTEMPTS || timeLeft < timeoutMs + RETRY_DELAY_MS) break;
       await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));

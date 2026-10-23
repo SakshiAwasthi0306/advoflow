@@ -16,7 +16,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate:status": "prisma migrate status",
     "postinstall": "prisma generate",
-    "ai:smoke": "tsx --conditions=react-server scripts/ai-smoke.ts"
+    "ai:smoke": "tsx --conditions=react-server scripts/ai-smoke.ts",
+    "ai:set-key": "tsx scripts/set-openrouter-key.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.27.3",
