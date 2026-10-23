@@ -53,7 +53,7 @@ export const openRouterAttempt: Attempt = async (a) => {
     body: JSON.stringify(body),
   });
   let json: {
-    error?: { code?: number; message?: string };
+    error?: { code?: number; message?: string; metadata?: { raw?: unknown; provider_name?: string } };
     choices?: { finish_reason?: string; message?: { content?: string | null; refusal?: string | null } }[];
     usage?: { prompt_tokens?: number; completion_tokens?: number; completion_tokens_details?: { reasoning_tokens?: number } };
   };
@@ -62,7 +62,12 @@ export const openRouterAttempt: Attempt = async (a) => {
   } catch {
     throw new OpenRouterError(res.ok ? 502 : res.status, "unreadable response");
   }
-  if (!res.ok || json.error) throw new OpenRouterError(json.error?.code ?? res.status, json.error?.message ?? `HTTP ${res.status}`); // errors can arrive inside a 200 body
+  if (!res.ok || json.error) {
+    // errors can arrive inside a 200 body; the upstream provider's own reason is in metadata.raw
+    const raw = json.error?.metadata?.raw;
+    const reason = [json.error?.message ?? `HTTP ${res.status}`, json.error?.metadata?.provider_name, raw === undefined ? undefined : typeof raw === "string" ? raw : JSON.stringify(raw)].filter(Boolean).join(" | ");
+    throw new OpenRouterError(json.error?.code ?? res.status, reason);
+  }
   const choice = json.choices?.[0];
   if (!choice) throw new OpenRouterError(502, "no choices");
   const finish = choice.finish_reason;

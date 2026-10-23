@@ -40,11 +40,13 @@ export const courtOrderOutputSchema = z.object({
 });
 export type CourtOrderOutput = z.infer<typeof courtOrderOutputSchema>;
 
-// ---- JSON Schema (for responseJsonSchema)
+// ---- JSON Schema (for responseJsonSchema / response_format)
+// Kept deliberately simple: Gemini rejects schemas whose constraints (maxItems, minimum, format, ...) make the
+// output grammar too large (400 INVALID_ARGUMENT). Every limit is still enforced by the Zod schema above.
 
 const nul = (type: string, extra: Record<string, unknown> = {}) => ({ type: [type, "null"], ...extra });
 const jsQuote = nul("string", { description: "Exact text copied from the document that supports the value; null if none." });
-const jsPage = nul("integer", { minimum: 1, description: "Page number from '--- Page N ---' markers, if present." });
+const jsPage = nul("integer", { description: "Page number from '--- Page N ---' markers, if present." });
 const jsField = (valueType: string, description: string, extra: Record<string, unknown> = {}) => ({
   type: "object",
   description,
@@ -57,7 +59,7 @@ const jsField = (valueType: string, description: string, extra: Record<string, u
   required: ["value", "status", "quote", "page"],
   additionalProperties: false,
 });
-const date = { format: "date", description: "YYYY-MM-DD" };
+const date = { description: "A calendar date written as YYYY-MM-DD, or null." };
 
 export const COURT_ORDER_JSON_SCHEMA: Record<string, unknown> = {
   type: "object",
@@ -75,12 +77,10 @@ export const COURT_ORDER_JSON_SCHEMA: Record<string, unknown> = {
     adjourned: jsField("boolean", "Whether the matter was adjourned."),
     costs: jsField("string", "Costs imposed, as written."),
     parties: {
-      type: "array", maxItems: 20,
-      items: { type: "object", properties: { name: { type: "string" }, role: { type: "string" }, quote: jsQuote, page: jsPage }, required: ["name", "role", "quote", "page"], additionalProperties: false },
+      type: "array", items: { type: "object", properties: { name: { type: "string" }, role: { type: "string" }, quote: jsQuote, page: jsPage }, required: ["name", "role", "quote", "page"], additionalProperties: false },
     },
     otherDates: {
-      type: "array", maxItems: 30,
-      items: {
+      type: "array", items: {
         type: "object",
         properties: { date: nul("string", date), kind: { type: "string", enum: ["past_hearing", "compliance_deadline", "filing", "event", "other"] }, description: { type: "string" }, quote: jsQuote, page: jsPage },
         required: ["date", "kind", "description", "quote", "page"],
@@ -88,12 +88,10 @@ export const COURT_ORDER_JSON_SCHEMA: Record<string, unknown> = {
       },
     },
     directions: {
-      type: "array", maxItems: 25,
-      items: { type: "object", properties: { text: { type: "string" }, verbatim: { type: "boolean" }, quote: jsQuote, page: jsPage }, required: ["text", "verbatim", "quote", "page"], additionalProperties: false },
+      type: "array", items: { type: "object", properties: { text: { type: "string" }, verbatim: { type: "boolean" }, quote: jsQuote, page: jsPage }, required: ["text", "verbatim", "quote", "page"], additionalProperties: false },
     },
     deadlines: {
-      type: "array", maxItems: 20,
-      items: {
+      type: "array", items: {
         type: "object",
         properties: { action: { type: "string" }, dueDate: nul("string", date), dueAsWritten: nul("string"), responsible: nul("string"), quote: jsQuote, page: jsPage },
         required: ["action", "dueDate", "dueAsWritten", "responsible", "quote", "page"],
@@ -101,9 +99,9 @@ export const COURT_ORDER_JSON_SCHEMA: Record<string, unknown> = {
       },
     },
     summary: { type: "string", description: "Two or three neutral sentences; a summary, not a quotation." },
-    missingOrAmbiguous: { type: "array", maxItems: 20, items: { type: "object", properties: { field: { type: "string" }, explanation: { type: "string" } }, required: ["field", "explanation"], additionalProperties: false } },
+    missingOrAmbiguous: { type: "array", items: { type: "object", properties: { field: { type: "string" }, explanation: { type: "string" } }, required: ["field", "explanation"], additionalProperties: false } },
     confidence: { type: "string", enum: ["high", "medium", "low"] },
-    warnings: { type: "array", maxItems: 20, items: { type: "string" } },
+    warnings: { type: "array", items: { type: "string" } },
   },
   additionalProperties: false,
   required: ["caseNumber", "cnr", "caseType", "title", "court", "courtLocation", "bench", "orderDate", "nextHearingDate", "nextHearingPurpose", "adjourned", "costs", "parties", "otherDates", "directions", "deadlines", "summary", "missingOrAmbiguous", "confidence", "warnings"],
