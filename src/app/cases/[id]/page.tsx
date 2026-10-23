@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BookOpen, FileText, Pencil, Upload } from "lucide-react";
+import { ArrowLeft, BookOpen, FileText, Pencil, Upload } from "lucide-react";
 import { pageData } from "@/lib/server";
 import { caseSummary } from "@/lib/services/queries";
 import { formatDate, todayIST } from "@/lib/dates";
-import { Badge, Card, DemoBadge, EmptyState, KeyVal, Notice, PageHeader, Tabs } from "@/components/ui";
+import { AIBadge, Badge, Card, DateBlock, DemoBadge, EmptyState, KeyVal, Notice, Tabs } from "@/components/ui";
+import { AddHearing } from "@/components/quick-actions";
+import { actionText } from "@/lib/activity";
 import { DueBadge, HearingBadge, JobBadge } from "@/components/status";
 import { ActionButton } from "@/components/client";
 import { AIClientDraft } from "@/components/ai-client-draft";
@@ -35,34 +37,60 @@ export default async function CaseWorkspace({ params, searchParams }: { params: 
 
   return (
     <>
-      <PageHeader
-        eyebrow={<Link href="/cases" className="link">My Cases</Link>}
-        title={c.number}
-        subtitle={<span className="flex flex-wrap items-center gap-2">{c.title || "Parties not entered"}{c.isDemo && <DemoBadge />}{c.status !== "active" && <Badge tone="neutral">{c.status}</Badge>}</span>}
-        actions={<>
-          <Link href={`/upload?case=${encodeURIComponent(c.number)}`} className="btn-primary"><Upload className="h-4 w-4" aria-hidden /> Add order</Link>
-          <Link href={`/cases/${c.id}/edit`} className="btn-secondary"><Pencil className="h-4 w-4" aria-hidden /> Edit</Link>
+      <header className="mb-6 animate-rise">
+        <Link href="/cases" className="kicker inline-flex items-center gap-1 hover:text-ink"><ArrowLeft className="h-3 w-3" aria-hidden /> Case diary</Link>
+        <div className="mt-3 grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="ref text-[22px] font-medium text-navy-900 sm:text-[26px]">{c.number}</h1>
+              {c.isDemo && <DemoBadge />}
+              {c.status !== "active" && <Badge tone="neutral">{c.status === "closed" ? "Closed" : "Archived"}</Badge>}
+              {c.cnr && <span className="ref rounded border border-line bg-surface px-1.5 py-0.5 text-[11.5px] text-muted" title="eCourts CNR">CNR {c.cnr}</span>}
+            </div>
+            <p className="display mt-1.5 text-[24px] font-medium leading-snug sm:text-[28px]">{c.title || <span className="text-muted">Parties not entered</span>}</p>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
+              <span>{c.court || "Court not entered"}</span>
+              {c.caseType && <span>{c.caseType}</span>}
+              {c.stage && <span>Stage: <span className="text-ink/80">{c.stage}</span></span>}
+              {client && <span>Client: <span className="text-ink/80">{client.name}</span></span>}
+            </div>
+          </div>
+          <div className="flex items-center gap-4 rounded-[10px] border border-line bg-surface p-3.5 lg:min-w-[300px]">
+            {s.hearing ? <DateBlock date={s.hearing.date} tone={s.hearing.date === today ? "today" : s.hearing.date < today ? "overdue" : "neutral"} /> : <div className="grid h-[58px] w-[52px] place-items-center rounded-lg border border-dashed border-line text-[10px] uppercase tracking-[0.08em] text-muted">No date</div>}
+            <div className="min-w-0 flex-1 text-sm">
+              <div className="kicker">Next hearing</div>
+              {s.hearing ? <>
+                <div className="mt-0.5 font-medium">{s.hearing.date === today ? "Today" : s.hearing.date < today ? `Was ${formatDate(s.hearing.date)}` : `${formatDate(s.hearing.date)}`}{s.hearing.purpose ? <span className="font-normal text-muted"> · {s.hearing.purpose}</span> : null}</div>
+                <div className="mt-1"><HearingBadge status={s.hearing.status} /></div>
+              </> : <div className="mt-0.5 text-muted">None recorded</div>}
+            </div>
+            {c.status === "active" && <AddHearing cases={[{ id: c.id, number: c.number, title: c.title }]} caseId={c.id} canConfirm={session.role === "owner" || session.role === "advocate"} today={today} triggerClass="btn-secondary btn-sm" />}
+          </div>
+        </div>
+        <div className="no-print mt-4 flex flex-wrap gap-2">
+          <Link href={`/upload?case=${encodeURIComponent(c.number)}`} className="btn-primary"><Upload className="h-4 w-4" aria-hidden /> Record an order</Link>
+          <Link href={`/cases/${c.id}/edit`} className="btn-secondary"><Pencil className="h-4 w-4" aria-hidden /> Edit details</Link>
           {c.status === "active"
-            ? <ActionButton url={`/api/cases/${c.id}/status`} body={{ status: "closed" }} className="btn-secondary" confirmText="Click again to close" success="Case closed">Close case</ActionButton>
+            ? <ActionButton url={`/api/cases/${c.id}/status`} body={{ status: "closed" }} className="btn-ghost" confirmText="Click again to close" success="Case closed">Close case</ActionButton>
             : <ActionButton url={`/api/cases/${c.id}/status`} body={{ status: "active" }} className="btn-secondary" success="Case reopened">Reopen</ActionButton>}
           {c.status !== "archived" && <ActionButton url={`/api/cases/${c.id}/status`} body={{ status: "archived" }} className="btn-ghost" confirmText="Click again to archive" success="Case archived">Archive</ActionButton>}
-        </>}
-      />
-      {pendingJobs.length > 0 && <div className="mb-4"><Notice title="An order for this case is waiting for your review">{pendingJobs.map((j) => <Link key={j.id} href={`/review/${j.id}`} className="link mr-3">Review and confirm →</Link>)}</Notice></div>}
+        </div>
+      </header>
+      {pendingJobs.length > 0 && <div className="ai-draft mb-5 flex flex-wrap items-center gap-3 px-4 py-3 text-sm"><AIBadge>Order drafted · waiting for you</AIBadge><span className="text-ink/80">Nothing from it is saved to this case until you check and confirm it.</span>{pendingJobs.map((j) => <Link key={j.id} href={`/review/${j.id}`} className="link ml-auto font-medium">Check the draft →</Link>)}</div>}
       <Tabs active={tab} tabs={[
         { key: "overview", label: "Overview", href: base + "overview" },
-        { key: "orders", label: "Orders & Timeline", href: base + "orders", count: orders.length },
-        { key: "research", label: "Legal Research", href: base + "research", count: reports.length },
+        { key: "orders", label: "Orders & timeline", href: base + "orders", count: orders.length },
+        { key: "research", label: "Research", href: base + "research", count: reports.length },
         { key: "tasks", label: "Tasks", href: base + "tasks", count: s.openTasks },
         { key: "documents", label: "Documents", href: base + "documents", count: docs.length },
-        { key: "client", label: "Client Updates", href: base + "client" },
+        { key: "client", label: "Client updates", href: base + "client" },
       ]} />
 
       {tab === "overview" && (
         <div className="grid gap-4 lg:grid-cols-3">
           <Card title="Case details" className="lg:col-span-2">
             <dl>
-              <KeyVal k="Case number">{c.number}{c.cnr ? <span className="text-muted"> · CNR {c.cnr}</span> : null}</KeyVal>
+              <KeyVal k="Case number"><span className="ref">{c.number}</span>{c.cnr ? <span className="text-muted"> · CNR {c.cnr}</span> : null}</KeyVal>
               <KeyVal k="Parties">{c.parties.petitioner || "—"} <span className="text-muted">v.</span> {c.parties.respondent || "—"}</KeyVal>
               <KeyVal k="Court">{c.court || "—"}</KeyVal>
               <KeyVal k="Case type">{c.caseType || "—"}</KeyVal>
@@ -85,7 +113,7 @@ export default async function CaseWorkspace({ params, searchParams }: { params: 
               ) : <p className="text-sm text-muted">No approved orders yet.</p>}
             </Card>
             <Card title="Recent activity">
-              {activity.length ? <ul className="space-y-1.5 text-sm">{activity.slice(0, 6).map((a) => <li key={a.id}><span className="font-medium">{a.action.replace(/[._]/g, " ")}</span><span className="block text-xs text-muted">{new Date(a.at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" })}</span></li>)}</ul> : <p className="text-sm text-muted">Nothing yet.</p>}
+              {activity.length ? <ul className="space-y-1.5 text-sm">{activity.slice(0, 6).map((a) => <li key={a.id}><span className="font-medium">{actionText(a)}</span><span className="block text-xs text-muted">{new Date(a.at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" })}</span></li>)}</ul> : <p className="text-sm text-muted">Nothing yet.</p>}
             </Card>
           </div>
         </div>

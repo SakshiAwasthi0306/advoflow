@@ -15,3 +15,6 @@ npm-debug.log*
 !.env.example
 .venv-judgments/
 /src/generated/
+
+# Local tool settings
+.claude/

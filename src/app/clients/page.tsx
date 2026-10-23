@@ -12,7 +12,7 @@ export default async function Clients() {
   const clients = [...ws.clients].sort((a, b) => a.name.localeCompare(b.name));
   return (
     <>
-      <PageHeader title="Clients" subtitle="Contact details, linked cases and the messages prepared for each client." />
+      <PageHeader eyebrow="Practice" title="Clients" subtitle="Contact details, linked cases and the messages prepared for each client." />
       <Card title="Add a client" className="mb-4"><ClientForm /></Card>
       {clients.length ? (
         <div className="grid gap-4 md:grid-cols-2">

@@ -4,8 +4,8 @@ import { language } from "@/lib/languages";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { MessageCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, MessageCircle } from "lucide-react";
 import { ActionButton, api, CopyButton, useToast } from "./client";
 
 // ---- Tasks ----------------------------------------------------------------------
@@ -14,26 +14,36 @@ export function TaskToggle({ id, done, title }: { id: string; done: boolean; tit
   const router = useRouter();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [checked, setChecked] = useState(done);
+  const [popped, setPopped] = useState(false);
+  useEffect(() => setChecked(done), [done]);
   return (
-    <input
-      type="checkbox"
-      className="mt-1 h-4 w-4 accent-navy-900"
-      checked={done}
-      disabled={busy}
-      aria-label={done ? `Reopen task: ${title}` : `Mark done: ${title}`}
-      onChange={async () => {
-        setBusy(true);
-        try {
-          await api(`/api/tasks/${id}`, "PATCH", { status: done ? "open" : "done" });
-          toast(done ? "Task reopened" : "Task completed");
-          router.refresh();
-        } catch (e) {
-          toast((e as Error).message, "error");
-        } finally {
-          setBusy(false);
-        }
-      }}
-    />
+    <span className="relative mt-0.5 inline-grid h-[18px] w-[18px] shrink-0 place-items-center">
+      <input
+        type="checkbox"
+        className="peer absolute inset-0 cursor-pointer appearance-none rounded-[5px] border-[1.5px] border-navy-700/45 bg-surface transition-colors checked:border-navy-900 checked:bg-navy-900 hover:border-navy-900 disabled:cursor-wait"
+        checked={checked}
+        disabled={busy}
+        aria-label={checked ? `Reopen task: ${title}` : `Mark done: ${title}`}
+        onChange={async () => {
+          const next = !checked;
+          setChecked(next); // feels instant; undone below if the server says no
+          if (next) setPopped(true);
+          setBusy(true);
+          try {
+            await api(`/api/tasks/${id}`, "PATCH", { status: next ? "done" : "open" });
+            toast(next ? "Done. One less thing to carry." : "Task reopened");
+            router.refresh();
+          } catch (e) {
+            setChecked(!next);
+            toast((e as Error).message, "error");
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
+      <Check aria-hidden strokeWidth={3} className={`pointer-events-none relative h-3 w-3 text-surface opacity-0 peer-checked:opacity-100 ${popped && checked ? "animate-pop" : ""}`} onAnimationEnd={() => setPopped(false)} />
+    </span>
   );
 }
 

@@ -32,7 +32,7 @@ export default async function Profile({ searchParams }: { searchParams: { welcom
 
   return (
     <>
-      <PageHeader title="Profile" subtitle={`${view.account.name} · ${view.offices.map((o) => `${o.name} (${o.role})`).join(", ")}`} />
+      <PageHeader eyebrow="You" title="Profile" subtitle={`${view.account.name} · ${view.offices.map((o) => `${o.name} (${o.role})`).join(", ")}`} />
       {welcome && (
         <div className="mb-4">
           <Notice tone="neutral" title="Welcome to AdvoFlow: set up your professional profile">

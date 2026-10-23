@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Fraunces, IBM_Plex_Mono, Instrument_Sans } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/client";
 import { Shell, type Alert } from "@/components/shell";
@@ -9,14 +10,20 @@ import { dashboard } from "@/lib/services/queries";
 import { config } from "@/lib/config";
 
 export const metadata: Metadata = { title: { default: "AdvoFlow", template: "%s · AdvoFlow" }, description: "Court diary, order review and legal research for advocates" };
-export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#12234A" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: [{ media: "(prefers-color-scheme: light)", color: "#F8F5EE" }, { media: "(prefers-color-scheme: dark)", color: "#111412" }] };
+
+// Display serif with soft character for headings; a clean, warm sans for the interface; a mono for case numbers and dates.
+const display = Fraunces({ subsets: ["latin"], variable: "--font-display", axes: ["SOFT", "opsz"], display: "swap" });
+const sans = Instrument_Sans({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
+const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-mono", display: "swap" });
+const fonts = `${display.variable} ${sans.variable} ${mono.variable}`;
 export const dynamic = "force-dynamic";
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
   if (!session) {
     return (
-      <html lang="en"><body><ToastProvider>{children}</ToastProvider></body></html>
+      <html lang="en" className={fonts}><body><ToastProvider>{children}</ToastProvider></body></html>
     );
   }
   const ws = await loadWorkspace(getStore(), session);
@@ -36,7 +43,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   if (config.researchConnector === "demo") notes.push("Legal research uses fictional demo sources");
   if (config.researchConnector === "opendata") notes.push("Legal research: real judgments from eCourts open data, keyword search");
   return (
-    <html lang="en">
+    <html lang="en" className={fonts}>
       <body>
         <ToastProvider>
           <Shell office={ws.office.name} user={session.name} role={session.role} alerts={alerts} reviewCount={d.awaitingReview.length} modeNote={notes.length ? notes.join(" · ") : null}>

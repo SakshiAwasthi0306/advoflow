@@ -21,12 +21,19 @@ const config: Config = {
         ok: { DEFAULT: v("ok"), soft: v("ok-soft"), line: v("ok-line") },
         neutral: { DEFAULT: v("neutral"), soft: v("neutral-soft"), line: v("neutral-line") },
         demo: { DEFAULT: v("demo"), soft: v("demo-soft"), line: v("demo-line") },
+        accent: { DEFAULT: v("accent"), soft: v("accent-soft"), line: v("accent-line") },
+        ai: { DEFAULT: v("ai"), soft: v("ai-soft"), line: v("ai-line") },
       },
+      // Fonts are self-hosted by next/font (src/app/layout.tsx); Indian-script text falls back to system Noto fonts.
       fontFamily: {
-        sans: ["ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Noto Sans", "Noto Sans Kannada", "Helvetica Neue", "Arial", "sans-serif"],
-        serif: ["Georgia", "Cambria", "Times New Roman", "serif"],
+        sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Noto Sans", "Noto Sans Kannada", "Noto Sans Devanagari", "Noto Sans Tamil", "sans-serif"],
+        serif: ["var(--font-display)", "Georgia", "Cambria", "serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
-      boxShadow: { card: "0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06)" },
+      boxShadow: {
+        card: "0 1px 2px rgb(40 34 20 / .04)",
+        lift: "0 1px 2px rgb(40 34 20 / .05), 0 8px 24px -12px rgb(40 34 20 / .18)",
+      },
       borderRadius: { xl: "12px" },
     },
   },

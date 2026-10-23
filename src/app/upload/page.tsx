@@ -7,7 +7,7 @@ import { Card, EmptyState, Notice, PageHeader } from "@/components/ui";
 import { JobBadge } from "@/components/status";
 import { UploadForm } from "@/components/upload-form";
 
-export const metadata = { title: "Upload Orders" };
+export const metadata = { title: "Court orders" };
 
 export default async function Upload({ searchParams }: { searchParams: { case?: string } }) {
   const { ws } = await pageData();
@@ -17,7 +17,7 @@ export default async function Upload({ searchParams }: { searchParams: { case?: 
   const docName = (id: string) => ws.documents.find((d) => d.id === id)?.filename ?? "Document";
   return (
     <>
-      <PageHeader title="Upload court orders" subtitle="Each order is read, matched to a case and held for your review. Nothing changes in your records until you confirm." />
+      <PageHeader eyebrow="Orders & research" title="Court orders" subtitle="Each order is read, matched to a case and held for your review. Nothing changes in your records until you confirm." />
       <div className="mb-4">
         {config.anthropicKey
           ? <Notice tone="navy" title="AI extraction is on">Orders are sent to Anthropic Claude for reading. Scans and photos are read with OCR. Every field still needs your review.</Notice>

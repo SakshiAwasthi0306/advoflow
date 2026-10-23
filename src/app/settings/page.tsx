@@ -13,7 +13,7 @@ export default async function Settings() {
   const rows: [string, { live: boolean; label: string }][] = [["AI extraction & research", st.ai], ["Database", st.database], ["Sign-in", st.auth], ["Legal research source", st.research], ["OCR", st.ocr], ["Document storage", st.storage], ...(config.authMode === "password" ? [["Two-step login", st.twoStep] as [string, { live: boolean; label: string }], ...(config.twoStepLogin === "required" ? [["Sign-in codes (email)", st.email] as [string, { live: boolean; label: string }]] : [])] : []), ["Calendar", st.calendar], ["Client messaging", st.messaging]];
   return (
     <>
-      <PageHeader title="Settings" subtitle={`${ws.office.name} · signed in as ${session.name} (${session.role})`} actions={session.mode === "password" ? <LogoutButton /> : null} />
+      <PageHeader eyebrow="Office" title="Settings" subtitle={`${ws.office.name} · signed in as ${session.name} (${session.role})`} actions={session.mode === "password" ? <LogoutButton /> : null} />
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="What is live and what is demo">
           <ul className="divide-y divide-line text-sm">{rows.map(([k, v]) => <li key={k} className="flex flex-wrap items-center justify-between gap-2 py-2"><span className="font-medium">{k}</span><span className="flex items-center gap-2 text-right text-muted">{v.label}{v.live ? <Badge tone="ok">Live</Badge> : <Badge tone="neutral">Not live</Badge>}</span></li>)}</ul>

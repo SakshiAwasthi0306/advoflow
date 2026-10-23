@@ -19,12 +19,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastCtx.Provider value={push}>
       {children}
-      <div aria-live="polite" className="fixed bottom-4 right-4 z-[60] flex w-[min(92vw,380px)] flex-col gap-2">
+      <div aria-live="polite" className="fixed bottom-4 left-1/2 z-[60] flex w-[min(92vw,420px)] -translate-x-1/2 flex-col gap-2 sm:left-auto sm:right-5 sm:translate-x-0">
         {items.map((t) => (
-          <div key={t.id} role="status" className={`flex items-start gap-2 rounded-lg border bg-surface px-3 py-2.5 text-sm shadow-lg ${t.tone === "ok" ? "border-ok-line" : "border-danger-line"}`}>
-            {t.tone === "ok" ? <CheckCircle2 className="mt-0.5 h-4 w-4 text-ok" aria-hidden /> : <XCircle className="mt-0.5 h-4 w-4 text-danger" aria-hidden />}
+          <div key={t.id} role="status" className="animate-rise flex items-start gap-2.5 rounded-xl bg-[rgb(27_35_30)] px-3.5 py-3 text-sm text-[rgb(248_245_238)] shadow-lift">
+            {t.tone === "ok" ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[rgb(150_210_165)]" aria-hidden /> : <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-[rgb(240_150_140)]" aria-hidden />}
             <span className="flex-1">{t.text}</span>
-            <button aria-label="Dismiss" onClick={() => setItems((x) => x.filter((y) => y.id !== t.id))}><X className="h-4 w-4 text-muted" /></button>
+            <button aria-label="Dismiss" className="rounded p-0.5 opacity-60 hover:opacity-100" onClick={() => setItems((x) => x.filter((y) => y.id !== t.id))}><X className="h-4 w-4" /></button>
           </div>
         ))}
       </div>

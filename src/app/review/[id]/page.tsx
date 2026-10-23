@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { FileText } from "lucide-react";
 import { pageData } from "@/lib/server";
 import { formatDate } from "@/lib/dates";
-import { Badge, Card, DemoBadge, Notice, PageHeader } from "@/components/ui";
+import { AIBadge, Badge, Card, DemoBadge, Notice, PageHeader } from "@/components/ui";
 import { JobBadge } from "@/components/status";
 import { ActionButton } from "@/components/client";
 import { ReviewForm } from "@/components/review-form";
@@ -22,8 +22,8 @@ export default async function Review({ params }: { params: { id: string } }) {
   return (
     <>
       <PageHeader
-        eyebrow={<Link href="/upload" className="link">Upload Orders</Link>}
-        title={job.status === "failed" ? "Enter order details" : "Review and confirm"}
+        eyebrow={<Link href="/upload" className="hover:text-ink">← Court orders</Link>}
+        title={job.status === "failed" ? "Enter order details" : job.status === "needs_review" ? "Check the draft" : "Order review"}
         subtitle={<span className="flex flex-wrap items-center gap-2"><JobBadge status={job.status} />{doc?.filename}{doc?.isDemo && <DemoBadge />}{ex && <span className="text-muted">· {ex.extractor === "gemini" || ex.extractor === "openrouter" ? `AI draft by ${ex.model}${ex.extractor === "openrouter" ? " via OpenRouter" : ""}, not verified` : ex.extractor === "anthropic" ? `Read by Claude (${ex.model})` : ex.extractor === "case-diary-import" ? "Imported from the Case Diary prototype" : "Read by the rule-based demo extractor"} · confidence {ex.confidence}</span>}</span>}
         actions={job.status === "rejected" ? <ActionButton url={`/api/jobs/${job.id}`} body={{ action: "reopen" }} success="Reopened for review">Reopen</ActionButton> : order ? <Link className="btn-primary" href={`/cases/${order.caseId}?tab=orders`}>Open case</Link> : null}
       />
@@ -32,7 +32,12 @@ export default async function Review({ params }: { params: { id: string } }) {
         {job.status === "approved" && <Notice tone="ok" title={`Approved ${job.decidedAt ? formatDate(job.decidedAt.slice(0, 10)) : ""}`}>This order is in the case timeline. Approving again would not create duplicates.</Notice>}
         {job.status === "rejected" && <Notice tone="neutral" title="Rejected">No records were changed. The document is kept; reopen to review it again.</Notice>}
         {job.conflicts.map((c, i) => <Notice key={i} tone="warn">{c}</Notice>)}
-        {ex?.warnings.map((w, i) => <Notice key={i} tone="warn">{w}</Notice>)}
+        {ex && ex.warnings.length > 0 && (
+          <div className={ex.extractor === "gemini" || ex.extractor === "openrouter" ? "ai-draft px-4 py-3" : "rounded-[10px] border border-warn-line bg-warn-soft/50 px-4 py-3"}>
+            <div className="mb-1.5 flex flex-wrap items-center gap-2">{ex.extractor === "gemini" || ex.extractor === "openrouter" ? <AIBadge>AI draft · {ex.confidence} confidence</AIBadge> : <Badge tone="warn">Automatic reading</Badge>}<span className="text-sm font-medium">Things to check before you confirm</span></div>
+            <ul className="ml-4 list-disc space-y-1 text-sm text-ink/85 marker:text-ai/60">{ex.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
+          </div>
+        )}
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Original document" action={doc && <a className="btn-secondary btn-sm" href={`/api/documents/${doc.id}`} target="_blank" rel="noopener noreferrer"><FileText className="h-3.5 w-3.5" aria-hidden /> Open original</a>} className="lg:sticky lg:top-20 lg:self-start">
@@ -49,7 +54,7 @@ export default async function Review({ params }: { params: { id: string } }) {
         </Card>
         <div className="space-y-4">
         {ex?.details && <AIDetails d={ex.details} />}
-        <Card title="Proposed update">
+        <Card title={job.status === "needs_review" ? "What AdvoFlow found" : "Order details"}>
           <ReviewForm jobId={job.id} ex={ex} match={job.match} readOnly={readOnly} cases={ws.cases.filter((c) => c.status !== "archived").map((c) => ({ id: c.id, number: c.number, title: c.title }))} />
         </Card>
         </div>
@@ -65,7 +70,7 @@ function AIDetails({ d }: { d: OrderDetails }) {
   const row = (label: string, f: OrderDetails["bench"]) =>
     f.value ? <li><span className="text-muted">{label}:</span> {f.value} {f.status !== "stated" && <Badge tone="warn">not confirmed</Badge>}{f.source && <q className="block text-xs text-muted">{f.source}{pg(f.page)}</q>}</li> : null;
   return (
-    <Card title="Also found in the order (AI draft)">
+    <Card title={<span className="flex items-center gap-2">Also found in the order <AIBadge>AI draft</AIBadge></span>} className="ai-draft !bg-ai-soft/50">
       <ul className="space-y-2 text-sm">
         {row("Case type", d.caseType)}
         {row("Court location", d.courtLocation)}

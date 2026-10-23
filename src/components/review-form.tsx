@@ -13,16 +13,17 @@ const LABELS: Record<FieldKey, string> = {
 const KIND: Record<FieldKey, "date" | "text" | "long" | "bool"> = { orderDate: "date", nextHearingDate: "date", stage: "text", summary: "long", adjourned: "bool", costs: "text", court: "text", title: "text" };
 
 function StatusTag({ s }: { s: FieldStatus }) {
-  if (s === "stated") return <span className="rounded-full border border-ok-line bg-ok-soft px-2 py-0.5 text-[11px] font-medium text-ok">Stated in order</span>;
-  if (s === "inferred") return <span className="rounded-full border border-warn-line bg-warn-soft px-2 py-0.5 text-[11px] font-medium text-warn">Inferred — check</span>;
-  return <span className="rounded-full border border-neutral-line bg-neutral-soft px-2 py-0.5 text-[11px] font-medium text-neutral">Not found</span>;
+  // Ink for what the order says in its own words; pencil for a reading that still needs a person's check.
+  if (s === "stated") return <span className="inline-flex items-center gap-1 rounded-md border border-navy-100 bg-navy-50 px-1.5 py-0.5 text-[11px] font-medium text-navy-800" title="Written in the order; the quoted passage is shown">✓ In the order</span>;
+  if (s === "inferred") return <span className="ai-chip" title="A reading of the order, not its exact words. Check it.">✎ Reading — check</span>;
+  return <span className="inline-flex rounded-md border border-neutral-line bg-neutral-soft px-1.5 py-0.5 text-[11px] font-medium text-neutral">Not in the order</span>;
 }
 
 export function ReviewForm({ jobId, ex, match, cases, readOnly }: { jobId: string; ex: Extraction | null; match: CaseMatch | null; cases: { id: string; number: string; title: string }[]; readOnly: boolean }) {
   const router = useRouter();
   const toast = useToast();
   const empty = { value: null, status: "missing" as FieldStatus, source: null };
-  const src = (k: FieldKey) => (ex ? (ex[k] as { value: unknown; status: FieldStatus; source: string | null }) : empty);
+  const src = (k: FieldKey) => (ex ? (ex[k] as { value: unknown; status: FieldStatus; source: string | null; page?: number | null }) : empty);
 
   const [fields, setFields] = useState(() =>
     Object.fromEntries((Object.keys(LABELS) as FieldKey[]).map((k) => {
@@ -120,12 +121,12 @@ export function ReviewForm({ jobId, ex, match, cases, readOnly }: { jobId: strin
       <section>
         <h3 className="mb-2 text-sm font-semibold">2. Check each detail</h3>
         <p className="mb-2 text-xs text-muted">Only ticked fields are saved. Untick anything wrong, or correct it first.</p>
-        <div className="divide-y divide-line rounded-xl border border-line">
+        <div className="divide-y divide-line overflow-hidden rounded-[10px] border border-line bg-surface">
           {(Object.keys(LABELS) as FieldKey[]).map((k) => {
             const f = src(k);
             const v = fields[k];
             return (
-              <div key={k} className={`grid gap-2 p-3 sm:grid-cols-[170px_1fr] ${k === "nextHearingDate" ? "bg-navy-50/50" : ""}`}>
+              <div key={k} className={`grid gap-2 p-3.5 sm:grid-cols-[170px_1fr] ${f.status === "inferred" ? "bg-ai-soft/60" : k === "nextHearingDate" ? "bg-navy-50/50" : ""}`}>
                 <div className="flex items-start gap-2">
                   <input id={`ap-${k}`} type="checkbox" className="mt-1 accent-navy-900" checked={v.approved} onChange={(e) => set(k, { approved: e.target.checked })} />
                   <label htmlFor={`ap-${k}`} className="text-sm font-medium">{LABELS[k]}<span className="mt-1 block"><StatusTag s={f.status} /></span></label>
@@ -135,7 +136,7 @@ export function ReviewForm({ jobId, ex, match, cases, readOnly }: { jobId: strin
                   {KIND[k] === "text" && <input aria-label={LABELS[k]} className="input" value={(v.value as string) ?? ""} onChange={(e) => set(k, { value: e.target.value })} />}
                   {KIND[k] === "long" && <textarea aria-label={LABELS[k]} className="input min-h-[70px]" value={(v.value as string) ?? ""} onChange={(e) => set(k, { value: e.target.value })} />}
                   {KIND[k] === "bool" && <select aria-label={LABELS[k]} className="input w-auto" value={v.value === null ? "" : v.value ? "yes" : "no"} onChange={(e) => set(k, { value: e.target.value === "" ? null : e.target.value === "yes" })}><option value="">Unknown</option><option value="yes">Yes</option><option value="no">No</option></select>}
-                  {f.source && <blockquote className="mt-1.5 border-l-2 border-line pl-2 text-xs text-muted">Source: “{f.source}”</blockquote>}
+                  {f.source && <blockquote className="mt-2 border-l-2 border-accent-line pl-2.5 text-xs leading-relaxed text-muted"><span className="kicker !text-[9.5px]">From the order{f.page ? ` · p. ${f.page}` : ""}</span><span className="mt-0.5 block font-serif text-[13px] italic text-ink/75">“{f.source}”</span></blockquote>}
                   {k === "nextHearingDate" && (
                     <label className="mt-2 flex items-start gap-2 text-sm">
                       <input type="checkbox" className="mt-1 accent-navy-900" checked={confirmHearing} disabled={!v.approved || !v.value} onChange={(e) => setConfirmHearing(e.target.checked)} />

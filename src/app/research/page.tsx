@@ -13,7 +13,7 @@ export default async function ResearchIndex() {
   const caseOf = (id: string) => ws.cases.find((c) => c.id === id);
   return (
     <>
-      <PageHeader title="Legal Research" subtitle="Start from a verified order. See the issues it raises, possibly applicable provisions, supporting and contrary authorities, and what to check next." />
+      <PageHeader eyebrow="Orders & research" title="Legal research" subtitle="Start from a verified order. See the issues it raises, possibly applicable provisions, supporting and contrary authorities, and what to check next." />
       <div className="mb-4">
         {config.researchConnector === "indiankanoon" && config.indianKanoonToken
           ? <Notice tone="navy" title="Indian Kanoon connector is configured (experimental)">Judgments are retrieved from Indian Kanoon. Treat every result as unreviewed until you have read it.</Notice>

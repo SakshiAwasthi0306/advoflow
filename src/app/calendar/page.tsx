@@ -7,7 +7,7 @@ import { Badge, Card, EmptyState, Notice, PageHeader } from "@/components/ui";
 import { HearingBadge } from "@/components/status";
 import { cx } from "@/components/ui";
 
-export const metadata = { title: "Calendar" };
+export const metadata = { title: "Hearings" };
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function chip(i: CalendarItem) {
@@ -54,7 +54,7 @@ export default async function Calendar({ searchParams }: { searchParams: Record<
 
   return (
     <>
-      <PageHeader title="Calendar" subtitle="Hearings and deadlines from your approved records." actions={<a href="/api/calendar" className="btn-secondary"><Download className="h-4 w-4" aria-hidden /> Export CSV</a>} />
+      <PageHeader eyebrow="Practice" title="Hearings" subtitle="Hearings and deadlines from your confirmed records." actions={<a href="/api/calendar" className="btn-secondary"><Download className="h-4 w-4" aria-hidden /> Export CSV</a>} />
       <div className="mb-4"><Notice tone="neutral">Only advocate-confirmed dates show as confirmed hearings. Unconfirmed dates are dashed and labelled. CSV export works with Google Calendar import; there is no live calendar sync.</Notice></div>
       <div className="card mb-4 flex flex-wrap items-center gap-2 p-3">
         <div className="flex gap-1" role="group" aria-label="View">

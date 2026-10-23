@@ -34,7 +34,7 @@ export default async function Tasks({ searchParams }: { searchParams: { filter?:
 
   return (
     <>
-      <PageHeader title="Tasks" subtitle="Every task across your cases. Tasks suggested by the AI only appear here after you approve them." />
+      <PageHeader eyebrow="Practice" title="Tasks" subtitle="Every task across your cases. Tasks suggested by the AI only appear here after you approve them." />
       <Card title="Add a task" className="mb-4"><AddTaskForm cases={ws.cases.filter((c) => c.status === "active").map((c) => ({ id: c.id, number: c.number }))} /></Card>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         {FILTERS.map(([k, label]) => <Link key={k} href={`/tasks?filter=${k}&sort=${sort}`} aria-current={k === filter ? "page" : undefined} className={k === filter ? "btn-primary btn-sm" : "btn-secondary btn-sm"}>{label} <span className="opacity-70">({count(k)})</span></Link>)}

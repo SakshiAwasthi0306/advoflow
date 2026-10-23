@@ -25,7 +25,7 @@ export default async function Reports() {
   if (!ws.cases.length) return <><PageHeader title="Reports" /><EmptyState title="No data yet" body="Reports are built from your stored cases, hearings and tasks." /></>;
   return (
     <>
-      <PageHeader title="Reports" subtitle={`Operational reports from stored records, as of ${formatDate(today)}. No outcome predictions or risk scores.`} actions={<PrintButton />} />
+      <PageHeader eyebrow="Office" title="Reports" subtitle={`Operational reports from stored records, as of ${formatDate(today)}. No outcome predictions or risk scores.`} actions={<PrintButton />} />
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label="Active cases" value={live.length} />
         <Stat label="Hearings in next 30 days" value={upcoming.length} />

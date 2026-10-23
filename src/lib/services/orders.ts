@@ -305,3 +305,41 @@ export function resolveReschedule(ws: Workspace, session: Session, taskId: strin
   for (const ch of ws.dateChanges) if (ch.affectedTaskIds.includes(t.id) && ch.affectedTaskIds.every((id) => !ws.tasks.find((x) => x.id === id)?.needsReschedule)) ch.reviewed = true;
   audit(ws, session, action === "move" ? "task.rescheduled" : "task.kept_date", "task", t.id, t.caseId, `${from} → ${action === "move" ? to : from}`);
 }
+
+/**
+ * Add a hearing by hand (for example, a date the advocate noted in court before the order is uploaded).
+ * A date can be entered as confirmed only by an advocate or owner; otherwise it awaits verification.
+ * The previous current hearing is kept: marked held if its date has passed, superseded (with a recorded date change
+ * and affected tasks flagged) if it was still upcoming. Adding the same date again changes nothing.
+ */
+export function addHearing(ws: Workspace, session: Session, caseId: string, input: { date: string; purpose: string; confirmed: boolean }, today: string) {
+  requireRole(session, "clerk");
+  if (input.confirmed) requireRole(session, "advocate");
+  const c = owned.case(ws, caseId);
+  if (c.status === "archived") throw new NotFoundError("Case not found");
+  if (input.date < today) throw new ValidationError("Choose today or a later date. Past hearings are recorded from their orders.");
+  const cur = currentHearing(ws, c.id);
+  if (cur && cur.date === input.date) {
+    if (input.confirmed && cur.status !== "confirmed") Object.assign(cur, { status: "confirmed", confirmedBy: session.userId, confirmedAt: nowISO() });
+    if (input.purpose && !cur.purpose) cur.purpose = input.purpose;
+    return cur;
+  }
+  const h: Hearing = {
+    id: newId("hear"), caseId: c.id, date: input.date, purpose: input.purpose, status: input.confirmed ? "confirmed" : "awaiting_verification",
+    sourceOrderId: null, supersededById: null, confirmedBy: input.confirmed ? session.userId : null, confirmedAt: input.confirmed ? nowISO() : null, createdAt: nowISO(),
+  };
+  ws.hearings.push(h);
+  if (cur) {
+    if (cur.date < today) cur.status = "held";
+    else {
+      cur.status = "superseded";
+      cur.supersededById = h.id;
+      const affected = ws.tasks.filter((t) => t.caseId === c.id && t.status === "open" && t.dueDate === cur.date);
+      for (const t of affected) t.needsReschedule = { from: cur.date, to: h.date };
+      ws.dateChanges.push({ id: newId("chg"), caseId: c.id, from: cur.date, to: h.date, orderId: null, at: nowISO(), affectedTaskIds: affected.map((t) => t.id), reviewed: affected.length === 0 });
+    }
+  }
+  c.updatedAt = nowISO();
+  audit(ws, session, "hearing.added", "hearing", h.id, c.id, `${h.date}${input.confirmed ? " (confirmed)" : " (awaiting verification)"}`);
+  return h;
+}

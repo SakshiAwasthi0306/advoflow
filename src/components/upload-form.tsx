@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
-import { FileUp, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { FileUp, Loader2, PenLine } from "lucide-react";
 import { api, useToast } from "./client";
 
 interface Result { name: string; jobId: string | null; status: string; reused: boolean; message: string }
@@ -82,21 +82,37 @@ export function UploadForm({ defaultCase, sample }: { defaultCase: string; sampl
         {files.length > 0 && <ul className="mt-2 text-sm text-muted">{files.map((f) => <li key={f.name}>{f.name} · {(f.size / 1024).toFixed(0)} KB</li>)}</ul>}
       </div>
       {errors.length > 0 && <div role="alert" className="rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger">{errors.map((e) => <div key={e}>{e}</div>)}</div>}
-      <button className="btn-primary" disabled={busy}>{busy ? <><Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Reading orders…</> : "Read orders"}</button>
+      <button className="btn-primary" disabled={busy}>{busy ? <><Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Reading…</> : "Extract order details"}</button>
+      {busy && <Reading />}
       {results && (
-        <div className="card p-3" aria-live="polite">
-          <h3 className="mb-2 text-sm font-semibold">Results</h3>
-          <ul className="divide-y divide-line text-sm">
-            {results.map((r, i) => (
-              <li key={i} className="flex flex-wrap items-center gap-2 py-2">
+        <div className="animate-rise space-y-2" aria-live="polite">
+          {results.map((r, i) => {
+            const failed = r.status === "error" || r.status === "failed";
+            return (
+              <div key={i} className={`flex flex-wrap items-center gap-3 px-4 py-3 text-sm ${failed ? "rounded-[10px] border border-danger-line bg-danger-soft/50" : r.status === "approved" ? "card" : "ai-draft"}`}>
+                {!failed && r.status !== "approved" && <span className="ai-chip"><PenLine className="h-3 w-3" aria-hidden />Draft ready</span>}
                 <span className="font-medium">{r.name}</span>
-                <span className={r.status === "error" || r.status === "failed" ? "text-danger" : "text-muted"}>{r.message}</span>
-                {r.jobId && <Link className="btn-primary btn-sm ml-auto" href={`/review/${r.jobId}`}>{r.status === "approved" ? "View" : r.status === "failed" ? "Enter manually" : "Review and confirm"}</Link>}
-              </li>
-            ))}
-          </ul>
+                <span className={failed ? "text-danger" : "text-muted"}>{r.status === "needs_review" && !r.reused ? "Check each detail against the original. Nothing is saved until you confirm." : r.message}</span>
+                {r.jobId && <Link className={`${failed ? "btn-secondary" : "btn-primary"} btn-sm ml-auto`} href={`/review/${r.jobId}`}>{r.status === "approved" ? "View" : failed ? "Enter manually" : "Check the draft"}</Link>}
+              </div>
+            );
+          })}
         </div>
       )}
     </form>
+  );
+}
+
+/** While an order is being read: honest steps (no fake progress percentages) and a calm placeholder. */
+function Reading() {
+  const steps = ["Reading the order…", "Finding the dates, directions and parties…", "Checking every date against the order's own words…"];
+  const [i, setI] = useState(0);
+  useEffect(() => { const t = setInterval(() => setI((x) => Math.min(x + 1, steps.length - 1)), 2600); return () => clearInterval(t); }, [steps.length]);
+  return (
+    <div className="ai-draft animate-fade p-4" role="status" aria-live="polite">
+      <div className="flex items-center gap-2 text-sm font-medium text-ai"><PenLine className="h-4 w-4" aria-hidden />{steps[i]}</div>
+      <div className="mt-3 space-y-2" aria-hidden><div className="skeleton h-2.5 w-3/4" /><div className="skeleton h-2.5 w-1/2" /><div className="skeleton h-2.5 w-2/3" /></div>
+      <p className="mt-3 text-xs text-muted">Usually under a minute. Scans and photos take a little longer.</p>
+    </div>
   );
 }

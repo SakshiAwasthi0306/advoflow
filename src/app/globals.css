@@ -2,96 +2,159 @@
 @tailwind components;
 @tailwind utilities;
 
+/* AdvoFlow visual identity
+   Ivory paper, forest-green ink, a terracotta accent kept for what genuinely needs attention.
+   Confirmed facts are "ink" (solid, high contrast). AI suggestions are "pencil" (sepia, dashed) until an advocate
+   confirms them. Colour always means something: status colours are paired with an icon or a word. */
+
 @layer base {
-  /* Theme tokens (R G B). Dark values follow the system setting, as the original Case Diary did. */
+  /* Tokens are R G B triplets. (The brand scale keeps its historical name "navy" in class names; it is forest green.) */
   :root {
     color-scheme: light;
-    --c-navy-950: 11 23 48;
-    --c-navy-900: 18 35 74;
-    --c-navy-800: 26 49 102;
-    --c-navy-700: 36 64 127;
-    --c-navy-100: 231 236 246;
-    --c-navy-50: 243 246 251;
-    --c-paper: 246 245 241;
-    --c-surface: 255 255 255;
-    --c-sidebar: 18 35 74;
-    --c-ink: 27 35 51;
-    --c-muted: 94 102 118;
-    --c-line: 227 224 215;
-    --c-danger: 180 35 24;
-    --c-danger-soft: 254 240 238;
-    --c-danger-line: 246 201 195;
-    --c-warn: 154 74 6;
-    --c-warn-soft: 255 245 227;
-    --c-warn-line: 245 217 168;
-    --c-ok: 6 118 71;
-    --c-ok-soft: 235 248 241;
-    --c-ok-line: 181 227 203;
-    --c-neutral: 71 84 103;
-    --c-neutral-soft: 242 244 247;
-    --c-neutral-line: 217 222 229;
-    --c-demo: 107 63 160;
-    --c-demo-soft: 244 239 251;
-    --c-demo-line: 220 205 240;
+    --c-navy-950: 12 31 23;
+    --c-navy-900: 25 62 46;
+    --c-navy-800: 34 82 61;
+    --c-navy-700: 52 110 84;
+    --c-navy-100: 219 232 223;
+    --c-navy-50: 237 243 238;
+    --c-paper: 248 245 238;
+    --c-surface: 255 254 250;
+    --c-sidebar: 242 238 228;
+    --c-ink: 27 35 30;
+    --c-muted: 99 103 95;
+    --c-line: 228 222 209;
+    --c-accent: 176 82 48;
+    --c-accent-soft: 251 237 228;
+    --c-accent-line: 237 198 176;
+    --c-danger: 166 45 32;
+    --c-danger-soft: 252 238 235;
+    --c-danger-line: 241 202 195;
+    --c-warn: 146 86 6;
+    --c-warn-soft: 252 244 225;
+    --c-warn-line: 238 215 163;
+    --c-ok: 47 110 66;
+    --c-ok-soft: 236 245 236;
+    --c-ok-line: 196 222 196;
+    --c-neutral: 88 92 86;
+    --c-neutral-soft: 242 240 234;
+    --c-neutral-line: 222 218 207;
+    --c-demo: 66 86 122;
+    --c-demo-soft: 236 240 247;
+    --c-demo-line: 204 213 230;
+    --c-ai: 117 82 24;
+    --c-ai-soft: 252 247 233;
+    --c-ai-line: 222 196 140;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       color-scheme: dark;
-      --c-navy-950: 5 8 15;
-      --c-navy-900: 143 180 232;
-      --c-navy-800: 169 198 239;
-      --c-navy-700: 111 149 207;
-      --c-navy-100: 42 58 85;
-      --c-navy-50: 33 43 59;
-      --c-paper: 20 23 29;
-      --c-surface: 29 34 43;
-      --c-sidebar: 15 22 38;
-      --c-ink: 232 234 240;
-      --c-muted: 154 163 181;
-      --c-line: 44 51 64;
-      --c-danger: 240 154 154;
-      --c-danger-soft: 61 35 35;
-      --c-danger-line: 107 52 52;
-      --c-warn: 232 160 104;
-      --c-warn-soft: 58 42 28;
-      --c-warn-line: 106 74 44;
-      --c-ok: 127 209 161;
-      --c-ok-soft: 31 54 41;
-      --c-ok-line: 47 90 65;
-      --c-neutral: 179 188 203;
-      --c-neutral-soft: 38 44 55;
-      --c-neutral-line: 58 66 80;
-      --c-demo: 196 166 238;
-      --c-demo-soft: 46 36 64;
-      --c-demo-line: 76 59 107;
+      --c-navy-950: 4 10 7;
+      --c-navy-900: 160 205 178;
+      --c-navy-800: 182 218 196;
+      --c-navy-700: 124 176 146;
+      --c-navy-100: 40 62 50;
+      --c-navy-50: 30 44 36;
+      --c-paper: 17 20 18;
+      --c-surface: 25 29 26;
+      --c-sidebar: 21 25 22;
+      --c-ink: 234 231 221;
+      --c-muted: 162 163 152;
+      --c-line: 47 53 48;
+      --c-accent: 236 150 115;
+      --c-accent-soft: 60 36 27;
+      --c-accent-line: 104 60 43;
+      --c-danger: 240 156 146;
+      --c-danger-soft: 62 33 30;
+      --c-danger-line: 108 52 46;
+      --c-warn: 232 178 98;
+      --c-warn-soft: 56 43 22;
+      --c-warn-line: 100 76 38;
+      --c-ok: 138 202 150;
+      --c-ok-soft: 30 50 35;
+      --c-ok-line: 52 88 60;
+      --c-neutral: 184 184 174;
+      --c-neutral-soft: 36 40 37;
+      --c-neutral-line: 60 66 61;
+      --c-demo: 162 182 220;
+      --c-demo-soft: 32 39 54;
+      --c-demo-line: 58 70 96;
+      --c-ai: 226 192 128;
+      --c-ai-soft: 44 38 26;
+      --c-ai-line: 96 80 50;
     }
   }
   html { -webkit-text-size-adjust: 100%; }
-  body { @apply bg-paper text-ink antialiased; font-size: 15px; line-height: 1.5; }
+  body {
+    @apply bg-paper font-sans text-ink antialiased;
+    font-size: 15px;
+    line-height: 1.55;
+    font-feature-settings: "ss01", "cv11";
+  }
   h1, h2, h3 { @apply text-ink; }
+  h1 { font-variation-settings: "SOFT" 30, "opsz" 72; }
   :focus-visible { outline: 2px solid rgb(var(--c-navy-700)); outline-offset: 2px; border-radius: 6px; }
   ::selection { background: rgb(var(--c-navy-100)); }
+  [dir="rtl"] { text-align: right; }
 }
 
 @layer components {
-  .card { @apply rounded-xl border border-line bg-surface shadow-card; }
-  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50; }
-  .btn-primary { @apply btn border-navy-900 bg-navy-900 text-surface hover:bg-navy-800; }
-  .btn-secondary { @apply btn border-line bg-surface text-ink hover:bg-navy-50; }
+  /* Surfaces: a light border, no heavy shadows. "panel" is a borderless section with a hairline above it. */
+  .card { @apply rounded-[10px] border border-line bg-surface; }
+  .card-raised { @apply rounded-[10px] border border-line bg-surface shadow-lift; }
+  .panel { @apply border-t border-line pt-4; }
+
+  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-lg border px-3.5 py-2 text-sm font-medium transition-[background-color,border-color,color,box-shadow,transform] duration-150 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 disabled:active:translate-y-0; }
+  .btn-primary { @apply btn border-navy-900 bg-navy-900 text-surface shadow-[inset_0_1px_0_rgb(255_255_255/0.08)] hover:border-navy-800 hover:bg-navy-800; }
+  .btn-accent { @apply btn border-accent bg-accent text-surface hover:brightness-110; }
+  .btn-secondary { @apply btn border-line bg-surface text-ink hover:border-navy-700/40 hover:bg-navy-50; }
   .btn-ghost { @apply btn border-transparent bg-transparent text-navy-800 hover:bg-navy-50; }
-  .btn-danger { @apply btn border-danger bg-surface text-danger hover:bg-danger-soft; }
+  .btn-danger { @apply btn border-danger/60 bg-surface text-danger hover:bg-danger-soft; }
   .btn-sm { @apply px-2.5 py-1 text-[13px]; }
-  .input { @apply w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted/70 focus:border-navy-700 focus:outline-none focus:ring-2 focus:ring-navy-100; }
+
+  .input { @apply w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink shadow-[inset_0_1px_1px_rgb(0_0_0/0.03)] transition-colors placeholder:text-muted/70 hover:border-navy-700/30 focus:border-navy-700 focus:outline-none focus:ring-[3px] focus:ring-navy-100 aria-[invalid=true]:border-danger; }
   .label { @apply mb-1 block text-[13px] font-medium text-ink; }
   .hint { @apply mt-1 text-xs text-muted; }
-  .th { @apply px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted; }
+  .th { @apply px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-muted; }
   .td { @apply border-t border-line px-3 py-2.5 align-top text-sm; }
-  .link { @apply text-navy-800 underline-offset-2 hover:underline; }
+  .link { @apply text-navy-800 underline decoration-navy-700/30 underline-offset-[3px] transition-colors hover:decoration-navy-700; }
+
+  /* Type helpers */
+  .kicker { @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-muted; }
+  .display { @apply font-serif tracking-[-0.015em]; }
+  /* Case numbers, CNRs and other identifiers: monospaced so they line up and are easy to read aloud in court. */
+  .ref { @apply font-mono text-[0.92em] tracking-[-0.01em] tabular-nums; }
+  .num { font-variant-numeric: tabular-nums lining-nums; }
+
+  /* AI suggestions look like pencil, not ink: unverified until confirmed by an advocate. */
+  .ai-draft { @apply rounded-[10px] border border-dashed border-ai-line bg-ai-soft; }
+  .ai-chip { @apply inline-flex items-center gap-1 rounded-md border border-dashed border-ai-line bg-ai-soft px-1.5 py-0.5 text-[11.5px] font-medium text-ai; }
+
+  /* Loading placeholder */
+  .skeleton { @apply rounded bg-line/70; background-image: linear-gradient(90deg, transparent, rgb(var(--c-surface) / 0.7), transparent); background-size: 200% 100%; animation: af-shimmer 1.4s ease-in-out infinite; }
+}
+
+@layer utilities {
+  .animate-rise { animation: af-rise 320ms cubic-bezier(.2, .8, .2, 1) both; }
+  .animate-pop { animation: af-pop 380ms cubic-bezier(.2, 1.4, .4, 1) both; }
+  .animate-fade { animation: af-fade 240ms ease-out both; }
+  .rise-1 { animation-delay: 40ms; } .rise-2 { animation-delay: 90ms; } .rise-3 { animation-delay: 140ms; } .rise-4 { animation-delay: 190ms; }
+}
+
+@keyframes af-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes af-pop { 0% { transform: scale(.6); opacity: 0; } 60% { transform: scale(1.12); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes af-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes af-shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+@keyframes af-strike { from { background-size: 0 1px; } to { background-size: 100% 1px; } }
+.af-done-text { background: linear-gradient(currentColor, currentColor) no-repeat 0 55% / 100% 1px; animation: af-strike 320ms ease-out both; }
+
+/* People who ask for less motion get none. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
 
 @media print {
   .no-print { display: none !important; }
   :root { color-scheme: light; }
   body { background: white; color: black; }
-  .card { box-shadow: none; }
+  .card, .card-raised { box-shadow: none; }
 }
