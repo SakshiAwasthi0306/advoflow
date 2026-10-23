@@ -329,14 +329,11 @@
   .empty-spark { animation: empty-spark 2.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
   .empty-spark-2 { animation-delay: 1.2s; }
 
-  .day-art { animation: af-enter 700ms 150ms cubic-bezier(.2, .8, .2, 1) backwards; }
-  .da-rays { animation: da-spin 30s linear infinite; }
-  .da-cloud { animation: da-drift 18s ease-in-out infinite alternate; }
-  .da-cloud-2 { animation-duration: 26s; animation-direction: alternate-reverse; }
-  .da-rise { animation: da-rise 1.6s cubic-bezier(.2, .8, .2, 1) both; }
-  .da-set { animation: da-set 1.6s cubic-bezier(.2, .8, .2, 1) both; }
-  .da-star { animation: da-twinkle 2.4s ease-in-out infinite; }
-  .da-float { animation: empty-float 6s ease-in-out infinite; }
+  .law-art { animation: af-enter 700ms 150ms cubic-bezier(.2, .8, .2, 1) backwards; }
+  .la-beam { animation: la-sway 5s ease-in-out infinite; }
+  .la-pan-l, .la-pan-r { animation: la-counter 5s ease-in-out infinite; }
+  .la-gavel { animation: la-gavel 3.2s ease-in-out infinite; }
+  .la-tap { opacity: 0; transform-box: fill-box; transform-origin: center; animation: la-tap 3.2s ease-out infinite; }
   .streak { animation: af-enter 600ms 400ms cubic-bezier(.2, .8, .2, 1) backwards; }
   .streak-flame { animation: flame 1.2s ease-in-out infinite alternate; transform-origin: 50% 90%; }
   .court-stop { animation: af-enter 500ms cubic-bezier(.2, .8, .2, 1) backwards; }
@@ -360,11 +357,10 @@
 @keyframes empty-gavel { 0%, 70%, 100% { transform: rotate(0); } 78% { transform: rotate(-18deg); } 86% { transform: rotate(6deg); } }
 @keyframes empty-lines { 0% { stroke-dashoffset: 40; } 40%, 100% { stroke-dashoffset: 0; } }
 @keyframes empty-spark { 0%, 100% { opacity: 0; transform: scale(.4); } 50% { opacity: 1; transform: scale(1.2); } }
-@keyframes da-spin { to { transform: rotate(360deg); } }
-@keyframes da-drift { to { transform: translateX(22px); } }
-@keyframes da-rise { from { transform: translateY(26px); opacity: .4; } }
-@keyframes da-set { from { transform: translateY(-20px); } }
-@keyframes da-twinkle { 50% { opacity: .25; } }
+@keyframes la-sway { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+@keyframes la-counter { 0%, 100% { transform: rotate(5deg); } 50% { transform: rotate(-5deg); } }
+@keyframes la-gavel { 0%, 60%, 76%, 100% { transform: rotate(0); } 70% { transform: rotate(24deg); } }
+@keyframes la-tap { 0%, 74% { opacity: 0; transform: scale(.6); } 77% { opacity: 1; transform: scale(1); } 90%, 100% { opacity: 0; transform: scale(1.3); } }
 @keyframes flame { to { transform: scale(1.15) rotate(-6deg); } }
 
 /* People who ask for less motion get none. */

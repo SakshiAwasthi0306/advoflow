@@ -9,7 +9,7 @@ import { ActionButton } from "@/components/client";
 import { QuickActions } from "@/components/quick-actions";
 import type { AuditEntry, Hearing, Workspace } from "@/lib/types";
 import { actionText } from "@/lib/activity";
-import { DayArt } from "@/components/day-art";
+import { LawArt } from "@/components/day-art";
 import { Flame, MapPin } from "lucide-react";
 
 const WEEKDAY = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -89,7 +89,6 @@ export default async function Today() {
     g.dates.push(h.date); g.cases.add(c.number); courts.set(c.court, g);
   }
   const courtList = [...courts.values()].map((g) => ({ ...g, dates: [...new Set(g.dates)].sort() })).sort((a, b) => a.dates[0].localeCompare(b.dates[0]));
-  const hourIST = Number(new Intl.DateTimeFormat("en-IN", { hour: "numeric", hour12: false, timeZone: "Asia/Kolkata" }).format(new Date()));
 
   // One honest sentence about the day.
   const bits: string[] = [];
@@ -154,7 +153,7 @@ export default async function Today() {
           <p className="mt-2 max-w-xl text-[15px] text-muted">{summary}</p>
           {streak >= 3 && <p className="streak mt-3 inline-flex items-center gap-1.5 rounded-full border border-warn-line bg-warn-soft px-3 py-1 text-[13px] font-medium text-warn"><Flame className="streak-flame h-4 w-4" aria-hidden />No overdue tasks for {streak} days</p>}
         </div>
-        <DayArt hour={hourIST} />
+        <LawArt />
       </header>
 
       <div className="animate-rise rise-1"><QuickActions cases={liveCases} canConfirm={canConfirm} today={today} /></div>
