@@ -71,6 +71,25 @@ Punjabi, Odia, Assamese, Urdu or Konkani (`src/lib/languages.ts`; add more there
 - Drafts are editable and **never sent**: "Open in WhatsApp" only opens a chat with the text filled in. Have a speaker of
   the language check the draft before sending.
 
+## Case research
+
+Legal research uses the same AI (`src/lib/ai/services/research.ts`, prompts `research.analyse.v1` and
+`research.synthesise.v1`, reasoning effort "medium", up to 70 s per step). Before, research only used AI with an
+Anthropic key and otherwise fell back to fixed keyword rules, which produced one generic issue per case.
+
+1. **Analyse**: the case record, the selected approved orders **and those orders' own text** go to the AI, which
+   returns the posture, up to 5 specific issues (each stated as a question about these parties and this order, with
+   what the order decided, research questions to answer before the next date, facts from the order, inferences, and
+   facts to find out), up to 6 provisions cited precisely, and search queries.
+2. **Retrieve**: those queries search the real judgments database (Supreme Court headnotes, Karnataka High Court).
+3. **Synthesise**: the AI reads only the retrieved judgments and links each point to a judgment id; anything that
+   does not match a retrieved judgment is removed. Names, citations, courts and dates always come from the database.
+
+Checks: bare-topic issues ("Delay") are dropped; provisions without a section are dropped and duplicates merged; an Act
+without a year is flagged; IPC / CrPC / Evidence Act suggestions get a note that BNS / BNSS / BSA apply from
+1 July 2024. Every provision stays "AI-suggested, unverified" with a link to India Code. Each research run counts as
+two AI calls against the usage limits.
+
 ## Not inventing legal information
 
 The prompt tells the model to report only what the order states, keep order date / past hearings / next hearing /

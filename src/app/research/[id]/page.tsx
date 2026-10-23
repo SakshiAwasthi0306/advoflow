@@ -6,7 +6,7 @@ import { formatDate } from "@/lib/dates";
 import { currentHearing } from "@/lib/services/orders";
 import type { Authority } from "@/lib/types";
 import { OPEN_DATA_ATTRIBUTION } from "@/lib/research/attribution";
-import { Badge, Card, DemoBadge, Notice, PageHeader } from "@/components/ui";
+import { AIBadge, Badge, Card, DemoBadge, Notice, PageHeader } from "@/components/ui";
 import { VerificationBadge } from "@/components/status";
 import { ActionButton, CopyButton } from "@/components/client";
 import { NoteForm, PrintButton, StepToTask } from "@/components/research-widgets";
@@ -47,8 +47,8 @@ export default async function Report({ params, searchParams }: { params: { id: s
         title={report.title}
         subtitle={<span className="flex flex-wrap items-center gap-2">
           <Badge tone={v.status === "reviewed" ? "ok" : "warn"}>{v.status === "reviewed" ? "Reviewed by advocate" : "Needs your review"}</Badge>
-          {v.mode === "demo" ? <Badge tone="demo">Demo — fictional sources</Badge> : v.mode === "rules" ? <Badge tone="navy">Real judgments · keyword match, not analysed</Badge> : v.mode === "partial" ? <Badge tone="neutral">AI analysis · no live legal source</Badge> : <Badge tone="navy">Live source</Badge>}
-          <span>Generated {new Date(v.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" })} · pipeline {v.pipeline}</span>
+          {v.mode === "demo" ? <Badge tone="demo">Demo — fictional sources</Badge> : v.mode === "rules" ? <Badge tone="navy">Real judgments · keyword match, not analysed</Badge> : v.mode === "partial" ? <AIBadge>AI research draft · no judgments found</AIBadge> : <AIBadge>AI research draft · judgments from the database</AIBadge>}
+          <span>Generated {new Date(v.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" })}{v.pipeline.includes(":") ? ` · ${v.pipeline.split(":")[1]?.split("/")[0]}` : v.mode === "rules" ? " · fixed rules, no AI" : ""}</span>
         </span>}
         actions={<>
           {v.status !== "reviewed" && <ActionButton url={url} body={{ type: "mark_reviewed" }} className="btn-primary" success="Marked as reviewed">Mark report reviewed</ActionButton>}
@@ -84,11 +84,12 @@ export default async function Report({ params, searchParams }: { params: { id: s
                 <div key={i.id} className="text-sm">
                   <h3 className="font-semibold">{i.title}</h3>
                   <p className="mt-1"><span className="font-medium">What the order decided: </span>{i.whatOrderDecided}</p>
-                  {i.questionsNext.length > 0 && <div className="mt-2"><div className="font-medium">Questions that may arise next</div><ul className="ml-5 list-disc">{i.questionsNext.map((q, j) => <li key={j}>{q}</li>)}</ul></div>}
+                  {i.questionsNext.length > 0 && <div className="mt-2"><div className="font-medium">Questions to answer before the next date</div><ul className="ml-5 list-disc">{i.questionsNext.map((q, j) => <li key={j}>{q}</li>)}</ul></div>}
                   <div className="mt-2 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-lg border border-ok-line bg-ok-soft/50 p-2"><div className="text-xs font-semibold text-ok">Facts from approved orders</div><ul className="ml-4 list-disc text-[13px]">{i.establishedFacts.length ? i.establishedFacts.map((f, j) => <li key={j}>{f}</li>) : <li>None recorded</li>}</ul></div>
-                    <div className="rounded-lg border border-warn-line bg-warn-soft/50 p-2"><div className="text-xs font-semibold text-warn">Inferences (not established)</div><ul className="ml-4 list-disc text-[13px]">{i.inferences.length ? i.inferences.map((f, j) => <li key={j}>{f}</li>) : <li>None</li>}</ul></div>
+                    <div className="rounded-lg border border-dashed border-ai-line bg-ai-soft/60 p-2"><div className="text-xs font-semibold text-ai">Inferences (not established)</div><ul className="ml-4 list-disc text-[13px]">{i.inferences.length ? i.inferences.map((f, j) => <li key={j}>{f}</li>) : <li>None</li>}</ul></div>
                   </div>
+                  {i.unknownFacts.length > 0 && <div className="mt-2 rounded-lg border border-line bg-surface p-2"><div className="text-xs font-semibold text-muted">Facts to find out (they could change the answer)</div><ul className="ml-4 list-disc text-[13px]">{i.unknownFacts.map((f, j) => <li key={j}>{f}</li>)}</ul></div>}
                 </div>
               ))}
             </div>
@@ -99,13 +100,13 @@ export default async function Report({ params, searchParams }: { params: { id: s
               <ul className="space-y-3">
                 {v.provisions.map((p) => (
                   <li key={p.id} className="rounded-lg border border-line p-3 text-sm">
-                    <div className="flex flex-wrap items-center gap-2"><span className="font-semibold">{p.legislation} — {p.section}</span><VerificationBadge v={p.verification} />{p.origin === "ai_suggested" && <Badge tone="neutral" icon={false}>AI-suggested</Badge>}</div>
+                    <div className="flex flex-wrap items-center gap-2"><span className="font-semibold">{p.legislation} — {p.section}</span><VerificationBadge v={p.verification} />{p.origin === "ai_suggested" && <AIBadge>AI-suggested · check the text</AIBadge>}</div>
                     <p className="mt-1">{p.explanation}</p>
                     <p className="mt-1 text-muted"><span className="font-medium text-ink">Why it may matter: </span>{p.relevance}</p>
                     {p.factsRequired.length > 0 && <p className="mt-1 text-muted"><span className="font-medium text-ink">Facts needed: </span>{p.factsRequired.join("; ")}</p>}
-                    {p.considerations && <p className="mt-1 text-muted"><span className="font-medium text-ink">Jurisdiction and timing: </span>{p.considerations}</p>}
+                    {p.considerations && <p className="mt-1 text-muted"><span className="font-medium text-ink">Check before relying: </span>{p.considerations}</p>}
                     <div className="no-print mt-2 flex flex-wrap gap-2">
-                      {p.url ? <a className="btn-secondary btn-sm" href={p.url} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-3.5 w-3.5" aria-hidden /> Official text</a> : <span className="text-xs text-muted">No official source connected — check the current text on India Code.</span>}
+                      {p.url ? <a className="btn-secondary btn-sm" href={p.url} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-3.5 w-3.5" aria-hidden /> Official text</a> : <a className="btn-secondary btn-sm" href="https://www.indiacode.nic.in/" target="_blank" rel="noopener noreferrer"><ExternalLink className="h-3.5 w-3.5" aria-hidden /> Check on India Code</a>}
                       <ActionButton url={url} body={{ type: "bookmark_provision", provisionId: p.id }} className="btn-ghost btn-sm">{v.bookmarkedProvisionIds.includes(p.id) ? <><Bookmark className="h-3.5 w-3.5 fill-current" aria-hidden /> Bookmarked</> : <><Bookmark className="h-3.5 w-3.5" aria-hidden /> Bookmark</>}</ActionButton>
                     </div>
                   </li>

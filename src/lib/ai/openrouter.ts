@@ -35,7 +35,7 @@ export const openRouterAttempt: Attempt = async (a) => {
     model: a.model,
     messages: [{ role: "system", content: a.system }, { role: "user", content }],
     max_tokens: a.maxOutputTokens ?? config.ai.maxOutputTokens,
-    reasoning: { effort: "low" },
+    reasoning: { effort: a.reasoning ?? "low" },
     ...(a.jsonSchema ? { response_format: { type: "json_schema", json_schema: { name: "court_order", strict: true, schema: a.jsonSchema } } } : {}),
     ...(hasPdf ? { plugins: [{ id: "file-parser", pdf: { engine: "native" } }] } : {}),
     provider: { data_collection: "deny", ...(config.aiZeroRetention ? { zdr: true } : {}), require_parameters: true },

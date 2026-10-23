@@ -20,6 +20,8 @@ export interface GenerateArgs {
   /** JSON Schema for structured output; omit for plain text (transcription). */
   jsonSchema?: Record<string, unknown>;
   maxOutputTokens?: number;
+  /** How much the model may think before answering. Extraction: low. Legal research: medium. */
+  reasoning?: "low" | "medium" | "high";
   timeoutMs?: number;
   /** Absolute time (ms) after which no retry is started, so a request never outlives its route. */
   deadlineAt?: number;

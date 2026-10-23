@@ -22,7 +22,7 @@ export const geminiAttempt: Attempt = async (a) => {
     config: {
       systemInstruction: a.system,
       maxOutputTokens: a.maxOutputTokens ?? config.ai.maxOutputTokens,
-      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+      thinkingConfig: { thinkingLevel: a.reasoning === "high" ? ThinkingLevel.HIGH : a.reasoning === "medium" ? ThinkingLevel.MEDIUM : ThinkingLevel.LOW },
       ...(a.jsonSchema ? { responseMimeType: "application/json", responseJsonSchema: a.jsonSchema } : {}),
       abortSignal: a.signal,
       httpOptions: { timeout: a.timeoutMs },
