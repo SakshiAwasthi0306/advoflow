@@ -5,6 +5,7 @@ import { AIError } from "../ai/errors";
 import { extractCourtOrder } from "../ai/services/court-order";
 import { demoExtract } from "../extraction/demo-extractor";
 import { extractText, sniff, type DetectedType, type TextResult } from "../extraction/text";
+import { logger } from "../logger";
 import { documents } from "../server";
 import { getStore } from "../store";
 import type { DocumentRecord, Extraction, ProcessingJob, Session } from "../types";
@@ -96,6 +97,7 @@ export async function intake(session: Session, items: IntakeItem[], hint: Proces
       } catch (e) {
         if (e instanceof AIError && opts?.throwAIErrors) throw e; // nothing has been written to the database
         textRes ??= { text: null, source: "none", note: null };
+        logger.warn("intake.read_failed", { requestId: opts?.requestId, fileType: type, ai: e instanceof AIError, reason: (e as Error).message.slice(0, 300) });
         error = `Automatic reading failed: ${e instanceof AIError ? e.message : (e as Error).message.slice(0, 200)} The document is saved; retry or enter the details manually.`;
       }
       // The same file uploaded again after a failure keeps its one document record.
@@ -111,6 +113,7 @@ export async function intake(session: Session, items: IntakeItem[], hint: Proces
       });
     } catch (e) {
       if (e instanceof AIError && opts?.throwAIErrors) throw e;
+      logger.warn("intake.failed", { requestId: opts?.requestId, reason: (e as Error).message.slice(0, 300) });
       out.push({ name: item.name, jobId: null, status: "error", reused: false, message: e instanceof ValidationError ? e.message : `Could not process: ${(e as Error).message.slice(0, 160)}` });
     }
   }

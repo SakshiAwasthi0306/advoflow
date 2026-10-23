@@ -22,7 +22,11 @@ export function sniff(bytes: Uint8Array): DetectedType {
 }
 
 async function pdfText(bytes: Uint8Array): Promise<{ text: string; pages: number }> {
-  // Legacy build runs in Node without a worker.
+  // Legacy build runs in Node without a worker thread. Load the worker module ourselves: pdfjs otherwise
+  // require()s "./pdf.worker.js" at runtime, which serverless file tracing does not bundle.
+  const g = globalThis as { pdfjsWorker?: unknown };
+  // @ts-expect-error no type declarations for the worker entry
+  g.pdfjsWorker ??= await import("pdfjs-dist/legacy/build/pdf.worker.js");
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.js");
   const doc = await pdfjs.getDocument({ data: bytes, isEvalSupported: false, useSystemFonts: false, disableFontFace: true }).promise;
   let text = "";

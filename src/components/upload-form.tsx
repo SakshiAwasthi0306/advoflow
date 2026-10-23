@@ -9,6 +9,25 @@ import { api, useToast } from "./client";
 interface Result { name: string; jobId: string | null; status: string; reused: boolean; message: string }
 const MAX = 15 * 1024 * 1024;
 const OK_TYPES = ["application/pdf", "image/png", "image/jpeg", "text/plain"];
+// The hosting platform rejects request bodies over ~4.5 MB, so one upload stays under this.
+const SEND_LIMIT = 4 * 1024 * 1024;
+
+/** Phone photos are often 3–8 MB; re-encode large ones at a size that still reads clearly. */
+async function shrinkPhoto(f: File): Promise<File> {
+  if (!/^image\/(png|jpeg)$/.test(f.type) || f.size < 1.5 * 1024 * 1024) return f;
+  try {
+    const img = await createImageBitmap(f);
+    const scale = Math.min(1, 2400 / Math.max(img.width, img.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/jpeg", 0.85));
+    return blob && blob.size < f.size ? new File([blob], f.name.replace(/\.png$/i, ".jpg"), { type: "image/jpeg" }) : f;
+  } catch {
+    return f;
+  }
+}
 
 export function UploadForm({ defaultCase, sample }: { defaultCase: string; sample: string }) {
   const router = useRouter();
@@ -23,12 +42,14 @@ export function UploadForm({ defaultCase, sample }: { defaultCase: string; sampl
   const [results, setResults] = useState<Result[] | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
 
-  function pick(list: FileList | null) {
+  async function pick(list: FileList | null) {
     const errs: string[] = [];
     const ok: File[] = [];
-    for (const f of Array.from(list ?? [])) {
+    for (const original of Array.from(list ?? [])) {
+      const f = await shrinkPhoto(original);
       if (!OK_TYPES.includes(f.type) && !/\.(pdf|png|jpe?g|txt)$/i.test(f.name)) errs.push(`${f.name}: use PDF, JPG, PNG or .txt`);
       else if (f.size > MAX) errs.push(`${f.name}: larger than 15 MB`);
+      else if (f.size > SEND_LIMIT) errs.push(`${f.name}: larger than 4 MB. Upload fewer pages, or a smaller scan.`);
       else ok.push(f);
     }
     setErrors(errs);
@@ -38,6 +59,7 @@ export function UploadForm({ defaultCase, sample }: { defaultCase: string; sampl
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!text.trim() && !files.length) { setErrors(["Paste an order or choose at least one file."]); return; }
+    if (files.reduce((n, f) => n + f.size, 0) > SEND_LIMIT) { setErrors(["These files are more than 4 MB together. Upload them a few at a time."]); return; }
     setBusy(true);
     setResults(null);
     const fd = new FormData();
@@ -76,8 +98,8 @@ export function UploadForm({ defaultCase, sample }: { defaultCase: string; sampl
         <label htmlFor="u-files" className="flex cursor-pointer flex-col items-center rounded-xl border-2 border-dashed border-line bg-surface px-4 py-6 text-center hover:border-navy-700/40">
           <FileUp className="mb-1 h-6 w-6 text-muted" aria-hidden />
           <span className="text-sm font-medium">Choose PDFs, photos (JPG, PNG) or .txt files</span>
-          <span className="text-xs text-muted">Up to 20 files, 15 MB each. Downloaded eCourts PDFs work best.</span>
-          <input ref={fileRef} id="u-files" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.txt,application/pdf,image/png,image/jpeg,text/plain" className="sr-only" onChange={(e) => pick(e.target.files)} />
+          <span className="text-xs text-muted">Up to 4 MB per upload; large photos are shrunk automatically. Downloaded eCourts PDFs work best.</span>
+          <input ref={fileRef} id="u-files" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.txt,application/pdf,image/png,image/jpeg,text/plain" className="sr-only" onChange={(e) => void pick(e.target.files)} />
         </label>
         {files.length > 0 && <ul className="mt-2 text-sm text-muted">{files.map((f) => <li key={f.name}>{f.name} · {(f.size / 1024).toFixed(0)} KB</li>)}</ul>}
       </div>
