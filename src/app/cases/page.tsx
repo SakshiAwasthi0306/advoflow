@@ -79,7 +79,7 @@ export default async function Cases({ searchParams }: { searchParams: Record<str
     const g = groupOf({ c, s });
     return (
       <li>
-        <Link href={`/cases/${c.id}`} className="group flex gap-4 rounded-lg px-3 py-3.5 transition-colors hover:bg-surface sm:gap-5">
+        <Link href={`/cases/${c.id}`} className={`group relative flex gap-4 rounded-lg px-3 py-3.5 transition-[background-color,box-shadow,transform] hover:-translate-y-px hover:bg-surface hover:shadow-lift sm:gap-5 before:absolute before:inset-y-3 before:left-0 before:w-[3px] before:rounded-full before:opacity-0 before:transition-opacity hover:before:opacity-100 ${g === "passed" ? "before:bg-danger" : g === "today" ? "before:bg-accent" : g === "week" ? "before:bg-teal-500" : "before:bg-violet-400"}`}>
           {s.hearing ? <DateBlock date={s.hearing.date} tone={g === "today" ? "today" : g === "passed" ? "overdue" : "neutral"} /> : <div className="grid h-[58px] w-[52px] shrink-0 place-items-center rounded-lg border border-dashed border-line text-[10px] font-medium uppercase tracking-[0.08em] text-muted">No date</div>}
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -157,6 +157,7 @@ export default async function Cases({ searchParams }: { searchParams: Record<str
             return (
               <section key={g.key} aria-labelledby={`g-${g.key}`}>
                 <div className="mb-1 flex items-baseline gap-3 border-b border-line pb-2">
+                  <span aria-hidden className={`h-2.5 w-2.5 shrink-0 translate-y-[-1px] self-center rounded-full ${{ passed: "bg-danger", today: "bg-accent", week: "bg-teal-500", later: "bg-violet-400", none: "bg-muted/50" }[g.key]}`} />
                   <h2 id={`g-${g.key}`} className={`display text-lg font-medium ${g.key === "passed" ? "text-danger" : g.key === "today" ? "text-accent" : ""}`}>{g.title}</h2>
                   <span className="num text-xs text-muted">{items.length}</span>
                   {g.note && <span className="hidden text-xs text-muted md:inline">{g.note}</span>}

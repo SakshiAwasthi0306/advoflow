@@ -19,7 +19,7 @@ function greeting(name: string) {
   const h = Number(new Intl.DateTimeFormat("en-IN", { hour: "numeric", hour12: false, timeZone: "Asia/Kolkata" }).format(new Date()));
   const part = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
   const first = name.replace(/\(.*?\)/g, "").trim().split(/\s+/)[0] || "";
-  return first ? `${part}, ${first}.` : `${part}.`;
+  return first ? <>{part}, <span className="text-gradient">{first}</span>.</> : <>{part}.</>;
 }
 
 const dayLabel = (iso: string, today: string) => {
@@ -152,8 +152,9 @@ export default async function Today() {
             const p = prep(ws, next);
             const inDays = daysBetween(today, next.date);
             return (
-              <section aria-labelledby="next-hearing" className="card-raised animate-rise rise-2 relative overflow-hidden p-5 sm:p-6">
-                <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-navy-900" />
+              <section aria-labelledby="next-hearing" className="theme-feature animate-rise rise-2 relative overflow-hidden rounded-xl p-5 shadow-glow sm:p-6">
+                <span aria-hidden className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-[rgb(120_182_255/0.18)] blur-2xl" />
+                <span aria-hidden className="pointer-events-none absolute -bottom-24 right-24 h-48 w-48 rounded-full bg-[rgb(80_210_200/0.16)] blur-2xl" />
                 <div className="kicker mb-3" id="next-hearing">Next hearing · {inDays === 1 ? "tomorrow" : `in ${inDays} days`}</div>
                 <div className="flex gap-4 sm:gap-5">
                   <DateBlock date={next.date} size="lg" tone={inDays <= 1 ? "today" : "neutral"} />
@@ -179,7 +180,7 @@ export default async function Today() {
                 const wd = WEEKDAY[new Date(Date.UTC(Number(w.date.slice(0, 4)), mm - 1, dd)).getUTCDay()].slice(0, 3);
                 const label = `${i === 0 ? "Today" : wd} ${dd}: ${w.hearings} hearing${w.hearings === 1 ? "" : "s"}, ${w.tasks} task${w.tasks === 1 ? "" : "s"} due`;
                 return (
-                  <li key={w.date} aria-label={label} className={`flex flex-col items-center rounded-lg border px-1 py-2.5 text-center ${i === 0 ? "border-accent/40 bg-accent-soft/60" : "border-line bg-surface"}`}>
+                  <li key={w.date} aria-label={label} className={`flex flex-col items-center rounded-lg border px-1 py-2.5 text-center transition-transform hover:-translate-y-0.5 ${i === 0 ? "border-transparent bg-gradient-to-b from-accent to-navy-800 text-white shadow-glow [&_*]:!text-white [&_.rounded-full]:!bg-white" : w.hearings ? "border-accent/30 bg-accent-soft" : w.tasks ? "border-amber-300/60 bg-amber-50 dark:bg-amber-500/10" : "border-line bg-surface"}`}>
                     <span className={`text-[10px] font-semibold uppercase tracking-[0.1em] ${i === 0 ? "text-accent" : "text-muted"}`}>{i === 0 ? "Today" : wd}</span>
                     <span className="display num mt-0.5 text-xl font-medium">{dd}</span>
                     <span className="mt-1.5 flex h-2 items-center gap-1" aria-hidden>
@@ -217,7 +218,7 @@ export default async function Today() {
               <ul className="space-y-1.5 pt-1">
                 {attention.slice(0, 9).map((a) => (
                   <li key={a.key}>
-                    <Link href={a.href} className={`group flex gap-3 rounded-lg border px-3 py-2.5 transition-colors ${a.ai ? "ai-draft hover:border-ai" : a.tone === "danger" ? "border-danger-line bg-danger-soft/40 hover:bg-danger-soft" : "border-line bg-surface hover:border-navy-700/30"}`}>
+                    <Link href={a.href} className={`group relative flex gap-3 overflow-hidden rounded-lg border px-3 py-2.5 pl-4 transition-[transform,box-shadow,background-color] hover:-translate-y-px hover:shadow-lift before:absolute before:inset-y-0 before:left-0 before:w-[3px] ${a.tone === "danger" ? "before:bg-danger" : a.ai ? "before:bg-ai" : a.tone === "accent" ? "before:bg-amber-500" : "before:bg-accent"} ${a.ai ? "ai-draft hover:border-ai" : a.tone === "danger" ? "border-danger-line bg-danger-soft/40 hover:bg-danger-soft" : "border-line bg-surface hover:border-navy-700/30"}`}>
                       <span className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-md ${toneCls[a.tone]}`}><a.icon className="h-4 w-4" aria-hidden /></span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-medium leading-snug">{a.title}</span>

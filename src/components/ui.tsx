@@ -153,7 +153,7 @@ export function Tabs({ tabs, active }: { tabs: { key: string; label: string; hre
           aria-current={t.key === active ? "page" : undefined}
           className={cx(
             "relative whitespace-nowrap px-3 py-2.5 text-sm font-medium transition-colors",
-            t.key === active ? "text-navy-900 after:absolute after:inset-x-2 after:-bottom-px after:h-[2px] after:rounded-full after:bg-accent" : "text-muted hover:text-ink",
+            t.key === active ? "text-accent after:absolute after:inset-x-2 after:-bottom-px after:h-[3px] after:rounded-full after:bg-gradient-to-r after:from-accent after:to-teal-500" : "text-muted hover:text-ink",
           )}
         >
           {t.label}
@@ -172,7 +172,7 @@ export function DateBlock({ date, tone = "neutral", size = "md" }: { date: strin
   const [y, m, d] = date.split("-").map(Number);
   const wd = WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
   const tones = {
-    today: "border-accent/40 bg-accent-soft text-accent",
+    today: "border-transparent bg-gradient-to-b from-accent to-navy-800 text-white shadow-glow",
     overdue: "border-danger-line bg-danger-soft text-danger",
     neutral: "border-line bg-surface text-ink",
     muted: "border-line bg-paper text-muted",

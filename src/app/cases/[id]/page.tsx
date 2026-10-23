@@ -55,7 +55,7 @@ export default async function CaseWorkspace({ params, searchParams }: { params: 
               {client && <span>Client: <span className="text-ink/80">{client.name}</span></span>}
             </div>
           </div>
-          <div className="flex items-center gap-4 rounded-[10px] border border-line bg-surface p-3.5 lg:min-w-[300px]">
+          <div className="theme-feature flex items-center gap-4 rounded-xl p-4 shadow-glow lg:min-w-[320px]">
             {s.hearing ? <DateBlock date={s.hearing.date} tone={s.hearing.date === today ? "today" : s.hearing.date < today ? "overdue" : "neutral"} /> : <div className="grid h-[58px] w-[52px] place-items-center rounded-lg border border-dashed border-line text-[10px] uppercase tracking-[0.08em] text-muted">No date</div>}
             <div className="min-w-0 flex-1 text-sm">
               <div className="kicker">Next hearing</div>

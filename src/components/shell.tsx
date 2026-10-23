@@ -110,7 +110,7 @@ export function Shell({ children, office, user, role, alerts, reviewCount, modeN
     <div className="min-h-screen lg:pl-[248px]">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-surface focus:px-3 focus:py-2">Skip to content</a>
       {/* Desktop sidebar */}
-      <aside className="no-print fixed inset-y-0 left-0 hidden w-[248px] flex-col border-r border-line bg-sidebar px-3 py-4 lg:flex">
+      <aside className="theme-sidebar no-print fixed inset-y-0 left-0 hidden w-[248px] flex-col px-3 py-4 lg:flex">
         <Brand />
         <div className="mt-5"><ProfileCard user={user} office={office} role={role} /></div>
         <nav aria-label="Main" className="mt-6 flex-1 overflow-y-auto"><NavLinks reviewCount={reviewCount} /></nav>
@@ -120,14 +120,14 @@ export function Shell({ children, office, user, role, alerts, reviewCount, modeN
       {open && (
         <div className="no-print fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
           <div className="animate-fade absolute inset-0 bg-navy-950/40" onClick={() => setOpen(false)} />
-          <div className="animate-rise absolute inset-y-0 left-0 w-[284px] overflow-y-auto border-r border-line bg-sidebar px-3 py-4">
+          <div className="theme-sidebar animate-rise absolute inset-y-0 left-0 w-[284px] overflow-y-auto px-3 py-4">
             <div className="flex items-center justify-between"><Brand /><button aria-label="Close menu" className="btn-ghost btn-sm" onClick={() => setOpen(false)}><X className="h-5 w-5" /></button></div>
             <div className="mt-5"><ProfileCard user={user} office={office} role={role} onNavigate={() => setOpen(false)} /></div>
             <nav aria-label="Main" className="mt-6"><NavLinks onNavigate={() => setOpen(false)} reviewCount={reviewCount} /></nav>
           </div>
         </div>
       )}
-      <header className="no-print sticky top-0 z-30 border-b border-line/80 bg-paper/90 backdrop-blur-md">
+      <header className="no-print sticky top-0 z-30 border-b border-line/80 bg-surface/75 backdrop-blur-md">
         <div className="flex items-center gap-2 px-4 py-2.5 sm:px-6 lg:px-8">
           <button className="btn-ghost btn-sm lg:hidden" aria-label="Open menu" onClick={() => setOpen(true)}><Menu className="h-5 w-5" /></button>
           <Link href="/" className="mr-1 lg:hidden" aria-label="AdvoFlow home"><Seal className="h-7 w-7" /></Link>

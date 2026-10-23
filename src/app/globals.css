@@ -86,6 +86,9 @@
   html { -webkit-text-size-adjust: 100%; }
   body {
     @apply bg-paper font-sans text-ink antialiased;
+    /* A soft wash of colour at the top of every page instead of flat grey. */
+    background-image: radial-gradient(1200px 380px at 70% -120px, rgb(var(--c-accent) / 0.10), transparent 70%), radial-gradient(900px 320px at 0% -80px, rgb(var(--c-ai) / 0.07), transparent 70%);
+    background-repeat: no-repeat;
     font-size: 15px;
     line-height: 1.55;
     font-feature-settings: "ss01";
@@ -96,14 +99,46 @@
   [dir="rtl"] { text-align: right; }
 }
 
+@layer base {
+  /* Scoped themes: the same tokens, redefined for a coloured background, so existing components adapt without
+     being rewritten. Used for the navy sidebar and for feature cards. */
+  .theme-sidebar, .theme-feature {
+    --c-ink: 236 242 250;
+    --c-muted: 158 180 206;
+    --c-line: 42 70 104;
+    --c-surface: 24 54 90;
+    --c-paper: 10 37 64;
+    --c-navy-50: 30 64 104;
+    --c-navy-100: 44 82 128;
+    --c-navy-700: 168 200 240;
+    --c-navy-800: 226 236 248;
+    --c-navy-900: 255 255 255;
+    --c-accent: 120 182 255;
+    --c-accent-soft: 30 66 112;
+    --c-accent-line: 60 104 160;
+    --c-ok: 126 220 176;
+    --c-ok-soft: 22 70 66;
+    --c-ok-line: 44 110 96;
+    --c-neutral: 190 204 220;
+    --c-neutral-soft: 34 62 96;
+    --c-neutral-line: 60 90 126;
+    --c-demo: 200 190 250;
+    --c-demo-soft: 50 52 104;
+    --c-demo-line: 82 82 140;
+    color: rgb(var(--c-ink));
+  }
+  .theme-sidebar { background: linear-gradient(180deg, rgb(10 37 64), rgb(12 44 78)); }
+  .theme-feature { background: linear-gradient(125deg, rgb(10 37 64) 0%, rgb(20 70 140) 62%, rgb(24 110 150) 100%); }
+}
+
 @layer components {
   /* Surfaces: a light border, no heavy shadows. "panel" is a borderless section with a hairline above it. */
-  .card { @apply rounded-lg border border-line bg-surface shadow-card; }
+  .card { @apply rounded-lg border border-line bg-surface shadow-card transition-shadow; }
   .card-raised { @apply rounded-lg border border-line bg-surface shadow-lift; }
   .panel { @apply border-t border-line pt-4; }
 
   .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-lg border px-3.5 py-2 text-sm font-semibold transition-[background-color,border-color,color,box-shadow] duration-150 disabled:cursor-not-allowed disabled:opacity-50; }
-  .btn-primary { @apply btn border-navy-900 bg-navy-900 text-surface hover:border-navy-800 hover:bg-navy-800 active:bg-navy-950; }
+  .btn-primary { @apply btn border-transparent bg-gradient-to-b from-navy-800 to-navy-900 text-surface shadow-[0_1px_2px_rgb(10_37_64/0.25),0_4px_12px_-4px_rgb(33_115_220/0.45)] hover:from-accent hover:to-navy-800 active:to-navy-950; }
   .btn-accent { @apply btn border-accent bg-accent text-surface hover:brightness-110; }
   .btn-secondary { @apply btn border-[rgb(var(--c-line))] bg-surface text-navy-900 shadow-card hover:border-navy-700/40 hover:bg-navy-50; }
   .btn-ghost { @apply btn border-transparent bg-transparent text-navy-800 hover:bg-navy-50; }
@@ -117,8 +152,11 @@
   .td { @apply border-t border-line px-3 py-2.5 align-top text-sm; }
   .link { @apply font-medium text-accent underline decoration-accent/0 underline-offset-[3px] transition-colors hover:decoration-accent; }
 
+  /* A little colour where it earns attention */
+  .text-gradient { background: linear-gradient(100deg, rgb(var(--c-accent)), rgb(20 170 160)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
   /* Type helpers */
-  .kicker { @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-muted; }
+  .kicker { @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-accent; }
   .display { @apply font-serif tracking-[-0.02em]; }
   /* Case numbers, CNRs and other identifiers: monospaced so they line up and are easy to read aloud in court. */
   .ref { @apply font-mono text-[0.92em] tracking-[-0.01em] tabular-nums; }
