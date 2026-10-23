@@ -184,13 +184,84 @@
 @keyframes af-strike { from { background-size: 0 1px; } to { background-size: 100% 1px; } }
 .af-done-text { background: linear-gradient(currentColor, currentColor) no-repeat 0 55% / 100% 1px; animation: af-strike 320ms ease-out both; }
 
+/* Motion layer (src/components/motion.tsx). Decoration only: every element is fully visible and usable without it,
+   and none of it runs for people who ask for reduced motion. Values for the pointer effects arrive as CSS variables. */
+@property --af-spot { syntax: "<number>"; inherits: false; initial-value: 0; }
+@property --af-r { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --af-ro { syntax: "<number>"; inherits: false; initial-value: 0; }
+@property --af-shift { syntax: "<percentage>"; inherits: false; initial-value: 0%; }
+
+@layer components {
+  /* Light that follows the pointer across a card. */
+  .card, .card-raised, .ai-draft {
+    background-image: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgb(var(--c-accent) / calc(var(--af-spot) * 0.09)), transparent 65%);
+    transition: --af-spot 300ms ease, box-shadow 200ms ease, border-color 200ms ease;
+  }
+  .af-lit { --af-spot: 1; }
+  .card.af-lit, .card-raised.af-lit { border-color: rgb(var(--c-accent) / 0.28); }
+
+  /* Feature cards tilt toward the pointer, with a moving sheen. */
+  .theme-feature { position: relative; animation-fill-mode: backwards !important; transform: perspective(1000px) rotateX(var(--af-rx, 0deg)) rotateY(var(--af-ry, 0deg)); transition: transform 500ms cubic-bezier(.2, .8, .2, 1), box-shadow 300ms ease; transform-style: preserve-3d; }
+  .theme-feature.af-lit { transition-duration: 120ms; box-shadow: 0 24px 50px -18px rgb(33 115 220 / .6); }
+  .theme-feature::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; background: radial-gradient(500px circle at var(--mx, 50%) var(--my, 0%), rgb(255 255 255 / calc(var(--af-spot) * 0.11)), transparent 55%); transition: --af-spot 300ms ease; }
+  .theme-feature.af-lit::after { --af-spot: 1; }
+
+  /* Buttons: a ripple from the exact point pressed; primary buttons lean toward the pointer and catch a sheen. */
+  .af-ripple { background-image: radial-gradient(circle at var(--rx) var(--ry), rgb(var(--c-accent) / calc(var(--af-ro) * 0.22)) var(--af-r), transparent calc(var(--af-r) + 1px)); animation: af-ripple 600ms cubic-bezier(.2, .8, .2, 1); }
+  .btn-primary.af-ripple { background-image: radial-gradient(circle at var(--rx) var(--ry), rgb(255 255 255 / calc(var(--af-ro) * 0.32)) var(--af-r), transparent calc(var(--af-r) + 1px)), linear-gradient(to bottom, var(--tw-gradient-stops)); }
+  .btn-primary { position: relative; overflow: hidden; translate: var(--af-tx, 0) var(--af-ty, 0); transition: translate 250ms cubic-bezier(.2, .8, .2, 1), background-color 150ms, box-shadow 200ms; }
+  .btn-primary::after { content: ""; position: absolute; inset: -2px; pointer-events: none; background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / .28) 50%, transparent 70%); translate: -120% 0; }
+  .btn-primary:hover::after { translate: 120% 0; transition: translate 700ms ease; }
+  .btn-primary:hover { box-shadow: 0 1px 2px rgb(10 37 64 / .25), 0 10px 24px -8px rgb(33 115 220 / .6); }
+  .btn-primary:active, .btn-secondary:active, .btn-ghost:active { scale: .97; }
+  .btn, .btn-primary, .btn-secondary, .btn-ghost, .btn-accent, .btn-danger { transition-property: background-color, border-color, color, box-shadow, scale, translate; }
+
+  /* The greeting's name drifts slowly through the brand colours. */
+  .text-gradient { background-image: linear-gradient(100deg, rgb(var(--c-accent)), rgb(20 170 160), rgb(120 110 240), rgb(var(--c-accent))); background-size: 300% 100%; animation: af-hue 9s ease-in-out infinite alternate; }
+
+  /* Sidebar: icons nudge on hover, the current page's marker glows, the seal turns. */
+  nav[aria-label="Main"] a svg { transition: translate 200ms cubic-bezier(.2, .8, .2, 1), scale 200ms; }
+  nav[aria-label="Main"] a:hover svg { translate: 2px 0; scale: 1.1; }
+  nav[aria-label="Main"] a[aria-current="page"] > span[aria-hidden]:first-child { box-shadow: 0 0 12px 1px rgb(var(--c-accent) / .8); animation: af-glow 2.4s ease-in-out infinite; }
+  .theme-sidebar > a:first-child svg, header a[aria-label="AdvoFlow home"] svg { transition: rotate 700ms cubic-bezier(.3, 1.4, .4, 1); }
+  .theme-sidebar > a:first-child:hover svg, header a[aria-label="AdvoFlow home"]:hover svg { rotate: -14deg; }
+
+  /* An urgent count on the bell sends out a soft pulse. */
+  button[aria-label^="Needs attention"] > span.bg-danger::after { content: ""; position: absolute; inset: 0; border-radius: inherit; animation: af-ping 2.2s cubic-bezier(0, 0, .2, 1) infinite; }
+
+  /* Each page arrives in a short cascade, top to bottom. */
+  .af-enter > * > *:not([class*="animate-"]) { animation: af-enter 520ms cubic-bezier(.2, .8, .2, 1) backwards; }
+  .af-enter > * > *:nth-child(2) { animation-delay: 50ms; } .af-enter > * > *:nth-child(3) { animation-delay: 100ms; }
+  .af-enter > * > *:nth-child(4) { animation-delay: 150ms; } .af-enter > * > *:nth-child(5) { animation-delay: 200ms; }
+  .af-enter > * > *:nth-child(n+6) { animation-delay: 250ms; }
+  /* Rows further down rise in as they scroll into view (browsers with scroll-driven animations only). */
+  @supports (animation-timeline: view()) {
+    #main li { animation: af-enter linear backwards; animation-timeline: view(); animation-range: entry 0% entry 60%; }
+  }
+}
+
+/* Reading progress, a pointer-lit page background, and slow colour drifting behind everything. */
+.af-progress { position: fixed; inset: 0 0 auto; height: 2px; z-index: 60; transform-origin: 0 50%; transform: scaleX(var(--af-p, 0)); background: linear-gradient(90deg, rgb(var(--c-accent)), rgb(20 170 160), rgb(120 110 240)); pointer-events: none; }
+.af-halo { position: fixed; left: 0; top: 0; width: 640px; height: 640px; margin: -320px 0 0 -320px; z-index: -1; pointer-events: none; border-radius: 50%; background: radial-gradient(closest-side, rgb(var(--c-accent) / .10), transparent); opacity: 0; transition: opacity 500ms ease; will-change: transform; }
+.af-halo.on { opacity: 1; }
+.af-aurora { position: fixed; inset: -20% -10%; z-index: -2; pointer-events: none; background: radial-gradient(40% 35% at 20% 30%, rgb(var(--c-accent) / .07), transparent 70%), radial-gradient(35% 30% at 80% 20%, rgb(20 170 160 / .06), transparent 70%), radial-gradient(40% 40% at 60% 85%, rgb(120 110 240 / .05), transparent 70%); animation: af-drift 28s ease-in-out infinite alternate; }
+
+@keyframes af-enter { from { opacity: 0; transform: translateY(14px) scale(.985); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes af-ripple { from { --af-r: 0px; --af-ro: 1; } to { --af-r: 220px; --af-ro: 0; } }
+@keyframes af-hue { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+@keyframes af-glow { 50% { box-shadow: 0 0 18px 3px rgb(var(--c-accent) / .55); } }
+@keyframes af-ping { from { box-shadow: 0 0 0 0 rgb(var(--c-danger) / .6); } to { box-shadow: 0 0 0 9px rgb(var(--c-danger) / 0); } }
+@keyframes af-drift { 0% { transform: translate3d(0, 0, 0) rotate(0deg); } 50% { transform: translate3d(3%, -2%, 0) rotate(4deg); } 100% { transform: translate3d(-3%, 2%, 0) rotate(-3deg); } }
+
 /* People who ask for less motion get none. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  .af-aurora, .af-halo { display: none; }
+  .btn-primary::after { display: none; }
 }
 
 @media print {
-  .no-print { display: none !important; }
+  .no-print, .af-progress, .af-halo, .af-aurora { display: none !important; }
   :root { color-scheme: light; }
   body { background: white; color: black; }
   .card, .card-raised { box-shadow: none; }

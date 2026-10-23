@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Hanken_Grotesk, IBM_Plex_Mono, Instrument_Sans } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/client";
+import { Motion } from "@/components/motion";
 import { Shell, type Alert } from "@/components/shell";
 import { getSession } from "@/lib/session";
 import { getStore } from "@/lib/store";
@@ -23,7 +24,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const session = await getSession();
   if (!session) {
     return (
-      <html lang="en" className={fonts}><body><ToastProvider>{children}</ToastProvider></body></html>
+      <html lang="en" className={fonts}><body><ToastProvider>{children}</ToastProvider><Motion /></body></html>
     );
   }
   const ws = await loadWorkspace(getStore(), session);
@@ -50,6 +51,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             {children}
           </Shell>
         </ToastProvider>
+        <Motion />
       </body>
     </html>
   );
