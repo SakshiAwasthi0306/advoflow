@@ -16,6 +16,7 @@ the AI proposes is saved to a case, hearing, order or task until an advocate con
 | `AI_MAX_OUTPUT_TOKENS` | `8192` | Per answer (16 384 for transcribing scans). |
 | `AI_MAX_INPUT_CHARS` | `60000` | Characters of order text sent; the reviewer is warned if a document is longer. |
 | `AI_USER_HOURLY_LIMIT` / `AI_OFFICE_DAILY_LIMIT` | `30` / `200` | AI calls per person per hour and per office per day. |
+| `AI_SITE_DAILY_LIMIT` | `300` | AI calls per day across the whole site. With open sign-up every tester gets a new office, so this is what bounds the bill (about $0.01 per order). |
 | `AI_IN_DEMO` | `false` | The shared public demo never calls the AI unless this is `true`. |
 
 **Model choice (checked 2026-10-23).** `gemini-3.8-flash` is listed as the latest **stable** Flash model on Google's

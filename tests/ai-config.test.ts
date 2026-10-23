@@ -42,3 +42,19 @@ describe("AI configuration", () => {
     expect(JSON.stringify(parseEnv({ GEMINI_API_KEY: "test-key-not-real", GEMINI_MODEL: "bad model" }).issues)).not.toContain("test-key-not-real");
   });
 });
+
+describe("site-wide AI limit", () => {
+  it("defaults to 300 calls a day and can be changed", async () => {
+    const { config } = await load({ AI_SITE_DAILY_LIMIT: undefined });
+    expect(config.ai.siteDailyLimit).toBe(300);
+    const { config: c2 } = await load({ AI_SITE_DAILY_LIMIT: "50" });
+    expect(c2.ai.siteDailyLimit).toBe(50);
+  });
+  it("stops AI calls once the whole site reaches its limit, whichever office asks", async () => {
+    const { aiAllowance } = await (async () => { await load({ AI_SITE_DAILY_LIMIT: "2", DATABASE_URL: undefined }); return import("@/lib/ai/limits"); })();
+    const s = (n: number) => ({ userId: `u${n}`, officeId: `office${n}`, role: "owner" as const, name: "x", mode: "password" as const });
+    await aiAllowance(s(1));
+    await aiAllowance(s(2));
+    await expect(aiAllowance(s(3))).rejects.toMatchObject({ name: "AIError", kind: "quota" });
+  });
+});

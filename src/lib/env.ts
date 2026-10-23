@@ -30,6 +30,7 @@ const schema = z.object({
   AI_MAX_INPUT_CHARS: opt(z.coerce.number().int().min(2_000).max(400_000)),
   AI_USER_HOURLY_LIMIT: opt(z.coerce.number().int().min(1).max(10_000)),
   AI_OFFICE_DAILY_LIMIT: opt(z.coerce.number().int().min(1).max(100_000)),
+  AI_SITE_DAILY_LIMIT: opt(z.coerce.number().int().min(1).max(1_000_000)),
   RESEARCH_CONNECTOR: opt(z.enum(["demo", "opendata", "indiankanoon", "none"])),
   INDIAN_KANOON_API_TOKEN: opt(z.string()),
   LOG_LEVEL: opt(z.enum(["debug", "info", "warn", "error"])),
@@ -68,7 +69,7 @@ export interface Env {
   aiZeroRetention: boolean;
   /** AI is used on sign-in deployments; the shared public demo keeps the rule-based extractor unless AI_IN_DEMO=true. */
   aiInDemo: boolean;
-  ai: { timeoutMs: number; maxOutputTokens: number; maxInputChars: number; userHourlyLimit: number; officeDailyLimit: number };
+  ai: { timeoutMs: number; maxOutputTokens: number; maxInputChars: number; userHourlyLimit: number; officeDailyLimit: number; siteDailyLimit: number };
   researchConnector: "demo" | "indiankanoon" | "opendata" | "none";
   indianKanoonToken: string;
   logLevel: "debug" | "info" | "warn" | "error";
@@ -152,6 +153,8 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
       maxInputChars: raw.AI_MAX_INPUT_CHARS ?? 60_000,
       userHourlyLimit: raw.AI_USER_HOURLY_LIMIT ?? 30,
       officeDailyLimit: raw.AI_OFFICE_DAILY_LIMIT ?? 200,
+      // Across everyone on this deployment: with open sign-up, new offices must not multiply the bill.
+      siteDailyLimit: raw.AI_SITE_DAILY_LIMIT ?? 300,
     },
     researchConnector,
     indianKanoonToken: raw.INDIAN_KANOON_API_TOKEN ?? "",
