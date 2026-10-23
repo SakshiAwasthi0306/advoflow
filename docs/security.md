@@ -33,6 +33,7 @@ Applies when `AUTH_MODE=password`. With `AUTH_MODE=demo` (the public demo) there
 | `POST /api/profile/email` `{ newEmail, currentPassword }` | Start an email change | `200 { status: "verification_sent" }`; **nothing changes until the link sent to the new address is opened** · `400` wrong password · `409` address in use · `503` email not configured |
 | `POST /api/profile/phone/send-code` `{ phoneNumber }` → `POST /api/profile/phone/verify` `{ phoneNumber, code }` | Add / change mobile | Saved only after the 6-digit SMS code is verified (5 min, 5 attempts); the old number stays until then · `409` number in use · `503` no SMS provider |
 | `POST /api/profile/deletion-request` `{ currentPassword, confirmation: "DELETE MY ACCOUNT", reason? }` | Request account deletion | `200 { scheduledFor }` (+30 days); the account is deactivated and every session ended at once · `400` · `409` sole owner of an office others still use |
+| `POST /api/ai/extract-court-order`, `GET /api/ai/extractions/:id`, `POST …/confirm`, `POST …/reject` | AI court-order drafts and their human confirmation | See [docs/ai.md](ai.md) |
 | `GET /api/judgments?q=…&limit=10` | Search the shared real-judgments corpus | `200 { results, attribution }` · `401` · `503` when no corpus is loaded |
 
 All errors use `{ error, code, requestId }` (see README → Health checks).

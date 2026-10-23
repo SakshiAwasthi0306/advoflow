@@ -1,7 +1,7 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Prisma, PrismaClient } from "@/generated/prisma/client";
 import type {
-  AuditEntry, Authority, CaseRecord, Client, ClientUpdate, CourtOrder, DateChange, DocumentRecord, Extraction, Hearing,
+  AuditEntry, Authority, CaseRecord, Client, ClientUpdate, CourtOrder, DateChange, DocumentRecord, Extraction, FieldReview, Hearing,
   Member, ProcessingJob, ResearchReport, ResearchVersion, Role, Task, Workspace,
 } from "../types";
 import { ConflictError, type WorkspaceStore } from "./types";
@@ -39,7 +39,7 @@ const day = (d: string | null | undefined) => (d ? new Date(`${d}T00:00:00.000Z`
 const iso = (d: Date) => d.toISOString();
 const isoDay = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
 const ts = (s: string | null | undefined) => (s ? new Date(s) : null);
-const EXTRACTOR = { "demo-rules": "DEMO_RULES", anthropic: "ANTHROPIC", "case-diary-import": "CASE_DIARY_IMPORT" } as const;
+const EXTRACTOR = { "demo-rules": "DEMO_RULES", anthropic: "ANTHROPIC", gemini: "GEMINI", openrouter: "OPENROUTER", "case-diary-import": "CASE_DIARY_IMPORT" } as const;
 const dbRole = (r: Role) => r.toUpperCase() as "OWNER" | "ADVOCATE" | "CLERK" | "VIEWER";
 const versionId = (reportId: string, v: number) => `${reportId}_v${v}`;
 const asJson = (v: unknown) => v as Prisma.InputJsonValue;
@@ -90,7 +90,7 @@ function toRows(ws: Workspace, stamps: Stamps, now: Date): Rows {
       id: r.id, officeId: o, caseId: r.caseId, documentId: r.documentId, jobId: r.jobId, orderDate: day(r.orderDate), summary: r.summary,
       stage: r.stage, adjourned: r.adjourned, costs: r.costs, directions: r.directions, nextHearingDate: day(r.nextHearingDate),
       nextHearingConfirmed: r.nextHearingConfirmed, approvedFields: r.approvedFields,
-      extractionSnapshot: r.extractionSnapshot ? asJson(r.extractionSnapshot) : Prisma.DbNull, approvedById: r.approvedBy, approvedAt: ts(r.approvedAt), isDemo: r.isDemo,
+      extractionSnapshot: r.extractionSnapshot ? asJson(r.extractionSnapshot) : Prisma.DbNull, fieldReview: r.fieldReview ? asJson(r.fieldReview) : Prisma.DbNull, approvedById: r.approvedBy, approvedAt: ts(r.approvedAt), isDemo: r.isDemo,
     });
   }
   for (const h of ws.hearings) {
@@ -213,7 +213,7 @@ async function readOffice(db: PrismaClient | Tx, officeId: string) {
     orders: orders.map((r): CourtOrder => ({
       id: r.id, caseId: r.caseId, documentId: r.documentId, jobId: r.jobId, orderDate: isoDay(r.orderDate), summary: r.summary, stage: r.stage,
       adjourned: r.adjourned, costs: r.costs, directions: r.directions, nextHearingDate: isoDay(r.nextHearingDate), nextHearingConfirmed: r.nextHearingConfirmed,
-      approvedFields: r.approvedFields, extractionSnapshot: (r.extractionSnapshot as Extraction | null) ?? null, approvedBy: r.approvedById ?? "",
+      approvedFields: r.approvedFields, extractionSnapshot: (r.extractionSnapshot as Extraction | null) ?? null, ...(r.fieldReview ? { fieldReview: r.fieldReview as unknown as FieldReview } : {}), approvedBy: r.approvedById ?? "",
       approvedAt: iso(r.approvedAt), isDemo: r.isDemo,
     })),
     hearings: hearings.map((h): Hearing => ({

@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { route, withWorkspace } from "@/lib/server";
 import { approveSchema } from "@/lib/schemas";
-import { approveJob, rejectJob, reopenJob } from "@/lib/services/orders";
+import { rejectJob, reopenJob } from "@/lib/services/orders";
+import { confirmExtraction } from "@/lib/ai/services/review";
 
 const body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("approve"), input: approveSchema }),
@@ -12,7 +13,8 @@ const body = z.discriminatedUnion("action", [
 export const POST = route(async (req, { params }: { params: { id: string } }) => {
   const b = body.parse(await req.json());
   return withWorkspace((ws, s) => {
-    if (b.action === "approve") return approveJob(ws, s, params.id, b.input);
+    // The review screen lists every conflict next to the Approve button, so approving there acknowledges them.
+    if (b.action === "approve") return confirmExtraction(ws, s, params.id, b.input, ["nextHearingDate", "court", "cnr", "title", "stage"]);
     if (b.action === "reject") { rejectJob(ws, s, params.id); return { ok: true }; }
     reopenJob(ws, s, params.id);
     return { ok: true };

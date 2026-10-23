@@ -1,6 +1,8 @@
 import "server-only";
-import { config } from "../config";
+import { config, usesAIService } from "../config";
 import { ocrImages } from "../ai/anthropic";
+import type { AIUsage } from "../types";
+import { transcribeDocument, type AIOptions } from "../ai/services/court-order";
 
 export type DetectedType = "pdf" | "png" | "jpeg" | "text" | null;
 
@@ -26,6 +28,7 @@ async function pdfText(bytes: Uint8Array): Promise<{ text: string; pages: number
   let text = "";
   const pages = Math.min(doc.numPages, 30);
   for (let i = 1; i <= pages; i++) {
+    text += `--- Page ${i} ---\n`; // lets extracted facts cite their page
     const page = await doc.getPage(i);
     const tc = await page.getTextContent();
     let lastY: number | null = null;
@@ -38,6 +41,7 @@ async function pdfText(bytes: Uint8Array): Promise<{ text: string; pages: number
     text += "\n\n";
   }
   await doc.destroy();
+  if (doc.numPages > pages) text += `[Only the first ${pages} of ${doc.numPages} pages were read.]\n`;
   return { text: text.replace(/[ ]+\n/g, "\n").trim(), pages };
 }
 
@@ -45,25 +49,37 @@ export interface TextResult {
   text: string | null;
   source: "pdf_text" | "ocr" | "plain_text" | "none";
   note: string | null;
+  usage?: AIUsage; // AI tokens spent reading a scan (Gemini)
 }
 
-export async function extractText(bytes: Uint8Array, type: DetectedType): Promise<TextResult> {
+const OCR_NOTE = "Text was read by OCR. Check names, numbers and dates against the original.";
+
+export async function extractText(bytes: Uint8Array, type: DetectedType, ai?: AIOptions): Promise<TextResult> {
   if (type === "text") return { text: new TextDecoder().decode(bytes), source: "plain_text", note: null };
+  const gemini = usesAIService() && ai;
   if (type === "pdf") {
     const { text } = await pdfText(bytes);
-    if (text.replace(/\s/g, "").length >= 40) return { text, source: "pdf_text", note: null };
+    if (text.replace(/--- Page \d+ ---|\s/g, "").length >= 40) return { text, source: "pdf_text", note: null };
+    if (gemini) {
+      const r = await transcribeDocument(bytes, "application/pdf", ai);
+      return { text: r.text, source: "ocr", note: OCR_NOTE, usage: r.usage };
+    }
     return {
       text: null,
       source: "none",
-      note: config.anthropicKey
+      note: config.aiProvider === "anthropic"
         ? "This PDF has no text layer (it is a scan). Upload a photo of each page so it can be read with OCR, or enter the details manually."
         : "This PDF has no text layer (it is a scan). OCR needs an AI key; enter the details manually instead.",
     };
   }
   if (type === "png" || type === "jpeg") {
-    if (!config.anthropicKey) return { text: null, source: "none", note: "Reading photos needs OCR, which is not configured in demo mode. Paste the order text or enter the details manually." };
+    if (gemini) {
+      const r = await transcribeDocument(bytes, type === "png" ? "image/png" : "image/jpeg", ai);
+      return { text: r.text, source: "ocr", note: OCR_NOTE, usage: r.usage };
+    }
+    if (config.aiProvider !== "anthropic") return { text: null, source: "none", note: "Reading photos needs OCR, which is not configured in demo mode. Paste the order text or enter the details manually." };
     const text = await ocrImages([{ mediaType: type === "png" ? "image/png" : "image/jpeg", base64: Buffer.from(bytes).toString("base64") }]);
-    return { text, source: "ocr", note: "Text was read by OCR. Check names, numbers and dates against the original." };
+    return { text, source: "ocr", note: OCR_NOTE };
   }
   return { text: null, source: "none", note: "Unsupported file type." };
 }

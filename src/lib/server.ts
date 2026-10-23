@@ -32,12 +32,16 @@ export async function withWorkspace<T>(fn: (ws: Workspace, session: Session) => 
 }
 
 /** Wraps an API route: consistent JSON errors (see src/lib/http.ts), no stack traces or document contents in responses or logs. */
-export function route<C = unknown>(fn: (req: Request, ctx: C) => Promise<unknown>) {
+export function route<C = unknown>(fn: (req: Request, ctx: C, meta: { requestId: string; startedAt: number }) => Promise<unknown>) {
   return async (req: Request, ctx: C) => {
     const requestId = newRequestId();
     try {
-      const out = await fn(req, ctx);
-      return out instanceof Response ? out : NextResponse.json(out ?? { ok: true });
+      const out = await fn(req, ctx, { requestId, startedAt: Date.now() });
+      if (out instanceof Response) {
+        if (!out.headers.has("x-request-id")) out.headers.set("x-request-id", requestId);
+        return out;
+      }
+      return NextResponse.json(out ?? { ok: true }, { headers: { "x-request-id": requestId } });
     } catch (e) {
       return errorResponse(e, requestId, { method: req.method, path: new URL(req.url).pathname });
     }

@@ -15,10 +15,12 @@
     "create-user": "tsx scripts/create-user.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate:status": "prisma migrate status",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "ai:smoke": "tsx --conditions=react-server scripts/ai-smoke.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.27.3",
+    "@google/genai": "2.28.0",
     "@neon/config": "^1.9.3",
     "@neon/env": "^1.6.4",
     "@node-rs/argon2": "^2.2.1",

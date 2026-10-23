@@ -119,7 +119,10 @@ Copy `.env.example` to `.env.local` and set only what you need. Every variable i
 | `DOCUMENT_STORAGE_DIR` | Private folder for uploads (default `.data/uploads`) |
 | `BLOB_READ_WRITE_TOKEN` | Store uploads in a private Vercel Blob store instead of the local folder |
 | `DATABASE_URL_UNPOOLED` | Direct (non-pooled) Postgres URL, used by `npm run db:migrate` (Prisma Migrate) when set (Neon) |
-| `ANTHROPIC_API_KEY` | Enables AI extraction, OCR and research analysis |
+| `OPENROUTER_API_KEY` | AI court-order extraction and OCR through OpenRouter (default model `google/gemini-3.8-flash`, `OPENROUTER_MODEL`). See [docs/ai.md](docs/ai.md) |
+| `GEMINI_API_KEY` | Same, directly with Google Gemini (`GEMINI_MODEL`, default `gemini-3.8-flash`); takes precedence |
+| `AI_*` | Limits and privacy options for AI (timeouts, tokens, per-user / per-office limits, zero-data-retention): [docs/ai.md](docs/ai.md) |
+| `ANTHROPIC_API_KEY` | Older AI provider for extraction, OCR and research analysis (used only when neither key above is set) |
 | `ANTHROPIC_MODEL` | Claude model id (default `claude-sonnet-4-5`) |
 | `RESEARCH_CONNECTOR` | `demo` (fictional corpus), `opendata` (real eCourts judgments in PostgreSQL), `indiankanoon`, or `none` |
 | `INDIAN_KANOON_API_TOKEN` | Token for the Indian Kanoon connector |
@@ -158,13 +161,15 @@ npm run create-user -- --email you@example.com --name "Your Name" --office-name 
 
 Roles: **owner** (everything, demo data, export), **advocate** (approves orders and research), **clerk** (uploads, tasks, clients), **viewer** (read-only). Every request is checked on the server: the office comes only from the session, another office's record answers 404, and roles are enforced per action. Endpoints (`/api/auth/login`, `/logout`, `/me`, `/register`), the authorization pattern, CSRF, rate limits, production requirements and known gaps: **[docs/security.md](docs/security.md)**.
 
-### AI (Anthropic Claude)
+### AI (Gemini via OpenRouter, or Gemini directly)
 
-Set `ANTHROPIC_API_KEY`. Uploaded order text is then sent to Anthropic for extraction, and scans and photos for OCR. **Tell your users, and check your client-confidentiality obligations, before enabling this.** Order text is wrapped as untrusted data in prompts; the model is told never to follow instructions inside it.
+Set `OPENROUTER_API_KEY` (or `GEMINI_API_KEY`) on a sign-in deployment. Uploaded orders are then read by the model and turned into a **draft that an advocate confirms field by field**; nothing is written before that. Every value is checked against the document's own text, and dates that cannot be found in their passage are left blank. Endpoints, safeguards, data protection, retention and Vercel setup: **[docs/ai.md](docs/ai.md)**. The shared demo never calls the AI.
+
+Older option: `ANTHROPIC_API_KEY` (used only when neither key above is set). Uploaded order text is then sent to Anthropic for extraction, and scans and photos for OCR. **Tell your users, and check your client-confidentiality obligations, before enabling this.** Order text is wrapped as untrusted data in prompts; the model is told never to follow instructions inside it.
 
 ### OCR
 
-Text-based PDFs (for example, downloaded eCourts orders) are read locally without OCR. Scans and photos use Claude vision when a key is set. To use a dedicated OCR service (for example Google Cloud Vision, which supports Kannada), implement it in `src/lib/extraction/text.ts` → `extractText()`; the rest of the pipeline is unchanged. Evaluate accuracy on real Kannada orders before relying on it.
+Text-based PDFs (for example, downloaded eCourts orders) are read locally without OCR. Scans and photos are transcribed by the configured AI model (Gemini) when a key is set, with page markers so extracted facts can cite their page. To use a dedicated OCR service (for example Google Cloud Vision, which supports Kannada), implement it in `src/lib/extraction/text.ts` → `extractText()`; the rest of the pipeline is unchanged. Evaluate accuracy on real Kannada orders before relying on it.
 
 ### Legal research connectors
 
@@ -340,7 +345,7 @@ No compliance certification is claimed.
 - **Your own `.env.local`**: copy `.env.example`; fill `DATABASE_URL` (and `DATABASE_URL_UNPOOLED`) if you want PostgreSQL locally. The hosted demo's values live in Vercel → Project → Settings → Environment Variables; `vercel env pull .env.local` copies them if you need them on another machine.
 - **`APP_URL`**: set it on password-mode deployments (e.g. `https://advoflow-app.vercel.app`); password-reset and email-change links are built from it.
 - **Rotate the Neon database password** (Neon → Roles → Reset password) because it was shared in a chat during setup, then update `DATABASE_URL` / `DATABASE_URL_UNPOOLED` in Vercel and `.env.local`.
-- **`ANTHROPIC_API_KEY`** and **`INDIAN_KANOON_API_TOKEN`** are optional and not set; the app runs without them.
+- **`OPENROUTER_API_KEY`** (AI extraction) is not set yet: see [docs/ai.md](docs/ai.md) → "Setting the key on Vercel". **`ANTHROPIC_API_KEY`** and **`INDIAN_KANOON_API_TOKEN`** are optional and not set; the app runs without them.
 
 ## Known limitations
 

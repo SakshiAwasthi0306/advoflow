@@ -7,6 +7,7 @@ import { Badge, Card, DemoBadge, Notice, PageHeader } from "@/components/ui";
 import { JobBadge } from "@/components/status";
 import { ActionButton } from "@/components/client";
 import { ReviewForm } from "@/components/review-form";
+import type { OrderDetails } from "@/lib/types";
 
 export const metadata = { title: "Review order" };
 
@@ -23,7 +24,7 @@ export default async function Review({ params }: { params: { id: string } }) {
       <PageHeader
         eyebrow={<Link href="/upload" className="link">Upload Orders</Link>}
         title={job.status === "failed" ? "Enter order details" : "Review and confirm"}
-        subtitle={<span className="flex flex-wrap items-center gap-2"><JobBadge status={job.status} />{doc?.filename}{doc?.isDemo && <DemoBadge />}{ex && <span className="text-muted">· {ex.extractor === "anthropic" ? `Read by Claude (${ex.model})` : ex.extractor === "case-diary-import" ? "Imported from the Case Diary prototype" : "Read by the rule-based demo extractor"} · confidence {ex.confidence}</span>}</span>}
+        subtitle={<span className="flex flex-wrap items-center gap-2"><JobBadge status={job.status} />{doc?.filename}{doc?.isDemo && <DemoBadge />}{ex && <span className="text-muted">· {ex.extractor === "gemini" || ex.extractor === "openrouter" ? `AI draft by ${ex.model}${ex.extractor === "openrouter" ? " via OpenRouter" : ""}, not verified` : ex.extractor === "anthropic" ? `Read by Claude (${ex.model})` : ex.extractor === "case-diary-import" ? "Imported from the Case Diary prototype" : "Read by the rule-based demo extractor"} · confidence {ex.confidence}</span>}</span>}
         actions={job.status === "rejected" ? <ActionButton url={`/api/jobs/${job.id}`} body={{ action: "reopen" }} success="Reopened for review">Reopen</ActionButton> : order ? <Link className="btn-primary" href={`/cases/${order.caseId}?tab=orders`}>Open case</Link> : null}
       />
       <div className="mb-4 space-y-2">
@@ -46,10 +47,35 @@ export default async function Review({ params }: { params: { id: string } }) {
             </>
           ) : <p className="text-sm text-muted">No text could be extracted. Open the original to read it.</p>}
         </Card>
+        <div className="space-y-4">
+        {ex?.details && <AIDetails d={ex.details} />}
         <Card title="Proposed update">
           <ReviewForm jobId={job.id} ex={ex} match={job.match} readOnly={readOnly} cases={ws.cases.filter((c) => c.status !== "archived").map((c) => ({ id: c.id, number: c.number, title: c.title }))} />
         </Card>
+        </div>
       </div>
     </>
+  );
+}
+
+const pg = (p: number | null | undefined) => (p ? ` (p. ${p})` : "");
+
+/** Everything else the AI found, each item with its source passage so it can be checked against the original. */
+function AIDetails({ d }: { d: OrderDetails }) {
+  const row = (label: string, f: OrderDetails["bench"]) =>
+    f.value ? <li><span className="text-muted">{label}:</span> {f.value} {f.status !== "stated" && <Badge tone="warn">not confirmed</Badge>}{f.source && <q className="block text-xs text-muted">{f.source}{pg(f.page)}</q>}</li> : null;
+  return (
+    <Card title="Also found in the order (AI draft)">
+      <ul className="space-y-2 text-sm">
+        {row("Case type", d.caseType)}
+        {row("Court location", d.courtLocation)}
+        {row("Judge / bench", d.bench)}
+        {d.parties.length > 0 && <li><span className="text-muted">Parties:</span> {d.parties.map((p) => `${p.name} (${p.role})`).join("; ")}</li>}
+        {d.otherDates.map((x, i) => <li key={`d${i}`}><span className="text-muted">{x.kind.replace("_", " ")}:</span> {x.date ? formatDate(x.date) : "date not stated"} — {x.description}{x.source && <q className="block text-xs text-muted">{x.source}{pg(x.page)}</q>}</li>)}
+        {d.deadlines.map((x, i) => <li key={`l${i}`}><span className="text-muted">Deadline:</span> {x.action} — {x.dueDate ? formatDate(x.dueDate) : x.dueAsWritten ?? "no date stated"}{x.responsible ? ` (${x.responsible})` : ""}{x.source && <q className="block text-xs text-muted">{x.source}{pg(x.page)}</q>}</li>)}
+        {d.directions.map((x, i) => <li key={`r${i}`}><span className="text-muted">Direction{x.verbatim ? " (court's words)" : " (summary)"}:</span> {x.verbatim ? <q>{x.text}</q> : x.text}{pg(x.page)}</li>)}
+      </ul>
+      {d.missingOrAmbiguous.length > 0 && <p className="mt-3 text-xs text-warn">Missing or unclear: {d.missingOrAmbiguous.map((m) => m.field).join(", ")}</p>}
+    </Card>
   );
 }

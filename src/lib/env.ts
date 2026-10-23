@@ -19,6 +19,17 @@ const schema = z.object({
   BLOB_READ_WRITE_TOKEN: opt(z.string()),
   ANTHROPIC_API_KEY: opt(z.string()),
   ANTHROPIC_MODEL: opt(z.string()),
+  GEMINI_API_KEY: opt(z.string()),
+  GEMINI_MODEL: opt(z.string().regex(/^gemini-[a-z0-9.-]+$/, "must be a Gemini model id such as gemini-3.8-flash")),
+  OPENROUTER_API_KEY: opt(z.string()),
+  OPENROUTER_MODEL: opt(z.string().regex(/^[a-z0-9-]+\/[a-z0-9.:-]+$/, "must be an OpenRouter model id such as google/gemini-3.8-flash")),
+  AI_ZERO_DATA_RETENTION: opt(z.enum(["true", "false"])),
+  AI_IN_DEMO: opt(z.enum(["true", "false"])),
+  AI_TIMEOUT_MS: opt(z.coerce.number().int().min(5_000).max(120_000)),
+  AI_MAX_OUTPUT_TOKENS: opt(z.coerce.number().int().min(1_024).max(65_536)),
+  AI_MAX_INPUT_CHARS: opt(z.coerce.number().int().min(2_000).max(400_000)),
+  AI_USER_HOURLY_LIMIT: opt(z.coerce.number().int().min(1).max(10_000)),
+  AI_OFFICE_DAILY_LIMIT: opt(z.coerce.number().int().min(1).max(100_000)),
   RESEARCH_CONNECTOR: opt(z.enum(["demo", "opendata", "indiankanoon", "none"])),
   INDIAN_KANOON_API_TOKEN: opt(z.string()),
   LOG_LEVEL: opt(z.enum(["debug", "info", "warn", "error"])),
@@ -47,6 +58,17 @@ export interface Env {
   blobToken: string;
   anthropicKey: string;
   anthropicModel: string;
+  /** Google Gemini (server-side only). Preferred AI provider when set. */
+  geminiKey: string;
+  geminiModel: string;
+  /** OpenRouter (OpenAI-compatible gateway), used when GEMINI_API_KEY is not set. */
+  openRouterKey: string;
+  openRouterModel: string;
+  /** Route AI requests only to providers that keep no data (OpenRouter `zdr`; also `data_collection: deny`). */
+  aiZeroRetention: boolean;
+  /** AI is used on sign-in deployments; the shared public demo keeps the rule-based extractor unless AI_IN_DEMO=true. */
+  aiInDemo: boolean;
+  ai: { timeoutMs: number; maxOutputTokens: number; maxInputChars: number; userHourlyLimit: number; officeDailyLimit: number };
   researchConnector: "demo" | "indiankanoon" | "opendata" | "none";
   indianKanoonToken: string;
   logLevel: "debug" | "info" | "warn" | "error";
@@ -116,6 +138,21 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
     blobToken: raw.BLOB_READ_WRITE_TOKEN ?? "",
     anthropicKey: raw.ANTHROPIC_API_KEY ?? "",
     anthropicModel: raw.ANTHROPIC_MODEL ?? "claude-sonnet-4-5",
+    geminiKey: raw.GEMINI_API_KEY ?? "",
+    // Latest stable Flash model per https://ai.google.dev/gemini-api/docs/models (checked 2026-10-23).
+    geminiModel: raw.GEMINI_MODEL ?? "gemini-3.8-flash",
+    openRouterKey: raw.OPENROUTER_API_KEY ?? "",
+    // Same model through OpenRouter; listed with structured outputs at https://openrouter.ai/api/v1/models (checked 2026-10-23).
+    openRouterModel: raw.OPENROUTER_MODEL ?? "google/gemini-3.8-flash",
+    aiZeroRetention: raw.AI_ZERO_DATA_RETENTION !== "false",
+    aiInDemo: raw.AI_IN_DEMO === "true",
+    ai: {
+      timeoutMs: raw.AI_TIMEOUT_MS ?? 30_000,
+      maxOutputTokens: raw.AI_MAX_OUTPUT_TOKENS ?? 8_192,
+      maxInputChars: raw.AI_MAX_INPUT_CHARS ?? 60_000,
+      userHourlyLimit: raw.AI_USER_HOURLY_LIMIT ?? 30,
+      officeDailyLimit: raw.AI_OFFICE_DAILY_LIMIT ?? 200,
+    },
     researchConnector,
     indianKanoonToken: raw.INDIAN_KANOON_API_TOKEN ?? "",
     logLevel: raw.LOG_LEVEL ?? (raw.NODE_ENV === "development" ? "debug" : "info"),

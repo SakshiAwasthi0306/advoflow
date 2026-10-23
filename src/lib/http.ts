@@ -4,6 +4,7 @@ import { ZodError } from "zod";
 import { ConflictError } from "./store/types";
 import { NotFoundError, PermissionError, ValidationError } from "./services/workspace";
 import { logger } from "./logger";
+import { AI_ERROR_STATUS, AIError, UnacknowledgedDifferences } from "./ai/errors";
 
 // One JSON shape for every API error:
 //   { "error": "<message safe to show a user>", "code": "<MACHINE_CODE>", "requestId": "<id also written to the server log>" }
@@ -19,7 +20,8 @@ export class RateLimitError extends Error {
 }
 
 export type ErrorCode =
-  | "VALIDATION_ERROR" | "UNAUTHENTICATED" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT" | "RATE_LIMITED" | "SERVICE_UNAVAILABLE" | "INTERNAL_ERROR";
+  | "VALIDATION_ERROR" | "UNAUTHENTICATED" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT" | "RATE_LIMITED" | "SERVICE_UNAVAILABLE" | "INTERNAL_ERROR"
+  | "AI_NOT_CONFIGURED" | "AI_UNAVAILABLE" | "AI_QUOTA_EXCEEDED" | "AI_TIMEOUT" | "AI_BLOCKED" | "AI_INVALID_OUTPUT" | "AI_BAD_REQUEST";
 
 export interface ErrorBody {
   error: string;
@@ -41,6 +43,15 @@ export function errorResponse(e: unknown, requestId: string, context: Record<str
   if (e instanceof NotFoundError) return errorJson(404, "NOT_FOUND", e.message, requestId);
   if (e instanceof ValidationError) return errorJson(400, "VALIDATION_ERROR", e.message, requestId);
   if (e instanceof ConflictError) return errorJson(409, "CONFLICT", e.message, requestId);
+  if (e instanceof AIError) {
+    // The user sees a plain message; the provider's details stay in the log as a short code.
+    logger.warn("ai.request_failed", { requestId, ...context, kind: e.kind, code: e.detail });
+    const m = AI_ERROR_STATUS[e.kind];
+    return errorJson(m.status, m.code as ErrorCode, e.message, requestId);
+  }
+  if (e instanceof UnacknowledgedDifferences) {
+    return NextResponse.json({ error: e.message, code: "CONFLICT", requestId, differences: e.differences }, { status: 409, headers: { "x-request-id": requestId, "Cache-Control": "no-store" } });
+  }
   if (e instanceof RateLimitError) return errorJson(429, "RATE_LIMITED", e.message, requestId, e.retryAfterSeconds ? { "Retry-After": String(e.retryAfterSeconds) } : undefined);
   const err = e instanceof Error ? e : new Error(String(e));
   logger.error("request failed", { requestId, ...context, error: { name: err.name, message: err.message.slice(0, 300) } });

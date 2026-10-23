@@ -76,6 +76,7 @@ export interface ExtractedField<T> {
   value: T | null;
   status: FieldStatus; // stated in the order, inferred by the extractor, or not present
   source: string | null; // passage from the order that supports the value
+  page?: number | null; // page of the source passage, when known
 }
 
 export interface ProposedTask {
@@ -104,8 +105,41 @@ export interface Extraction {
   clientUpdateKn: string;
   confidence: "high" | "medium" | "low";
   warnings: string[];
-  extractor: "demo-rules" | "anthropic" | "case-diary-import";
+  extractor: "demo-rules" | "anthropic" | "gemini" | "openrouter" | "case-diary-import";
   model: string | null;
+  /** Richer AI-only details (Gemini). Everything here is an unverified draft until an advocate confirms it. */
+  details?: OrderDetails;
+  /** Provenance of an AI draft, for audit and cost tracking. */
+  ai?: { provider: "gemini" | "openrouter"; model: string; promptVersion: string; requestId: string; usage: AIUsage; inputKind: "text" | "file"; verified: false };
+}
+
+export interface AIUsage {
+  inputTokens: number | null;
+  outputTokens: number | null;
+  thoughtsTokens: number | null;
+  attempts: number;
+  ms: number;
+}
+
+export interface OrderDetails {
+  courtLocation: ExtractedField<string>;
+  caseType: ExtractedField<string>;
+  bench: ExtractedField<string>; // judge or bench, only when named
+  parties: { name: string; role: string; source: string | null; page: number | null }[];
+  /** Every other date in the order, each with what it is. Never a hearing date unless the order says so. */
+  otherDates: { date: ISODate | null; kind: "past_hearing" | "compliance_deadline" | "filing" | "event" | "other"; description: string; source: string | null; page: number | null }[];
+  directions: { text: string; verbatim: boolean; source: string | null; page: number | null }[];
+  deadlines: { action: string; dueDate: ISODate | null; dueAsWritten: string | null; responsible: string | null; source: string | null; page: number | null }[];
+  missingOrAmbiguous: { field: string; explanation: string }[];
+}
+
+/** What the advocate did with each proposed field when confirming an AI draft. */
+export interface FieldReview {
+  reviewedBy: string;
+  reviewedAt: ISODateTime;
+  fields: Record<string, "accepted" | "edited" | "rejected">;
+  tasks: { title: string; decision: "accepted" | "edited" | "rejected" }[];
+  acknowledgedConflicts: string[];
 }
 
 export interface CaseMatch {
@@ -150,6 +184,7 @@ export interface CourtOrder {
   nextHearingConfirmed: boolean;
   approvedFields: string[];
   extractionSnapshot: Extraction | null; // what the AI proposed, kept for audit
+  fieldReview?: FieldReview | null; // accepted / edited / rejected per field (AI confirmations)
   approvedBy: string;
   approvedAt: ISODateTime;
   isDemo: boolean;

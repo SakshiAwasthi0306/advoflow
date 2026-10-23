@@ -100,6 +100,8 @@ enum JobStatus {
 enum Extractor {
   DEMO_RULES
   ANTHROPIC
+  GEMINI
+  OPENROUTER
   CASE_DIARY_IMPORT
 
   @@schema("app")
@@ -597,6 +599,7 @@ model CourtOrder {
   nextHearingConfirmed Boolean   @default(false)
   approvedFields       String[]  @default([])
   extractionSnapshot   Json?
+  fieldReview          Json? // per-field accepted / edited / rejected, reviewer and time (AI confirmations)
   approvedById         String?
   approvedAt           DateTime  @default(now()) @db.Timestamptz(6)
   isDemo               Boolean   @default(false)
