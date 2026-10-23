@@ -18,7 +18,7 @@ function chip(i: CalendarItem) {
     : "border-neutral-line bg-neutral-soft text-neutral line-through";
   const prefix = i.kind === "deadline" ? "Due" : i.status === "confirmed" ? "Hearing" : i.status === "awaiting_verification" ? "Unconfirmed" : i.status === "held" ? "Held" : "Superseded";
   return (
-    <Link key={i.kind + i.id} href={`/cases/${i.caseId}?tab=${i.kind === "deadline" ? "tasks" : "orders"}`} className={cx("block truncate rounded border px-1.5 py-0.5 text-[11px]", style)} title={`${prefix}: ${i.caseNumber} – ${i.title}`}>
+    <Link key={i.kind + i.id} href={`/cases/${i.caseId}?tab=${i.kind === "deadline" ? "tasks" : "orders"}`} className={cx("cal-chip block truncate rounded border px-1.5 py-0.5 text-[11px]", style)} title={`${prefix}: ${i.caseNumber} – ${i.title}`}>
       <span className="font-semibold">{prefix}</span> {i.caseNumber}
     </Link>
   );
@@ -51,6 +51,18 @@ export default async function Calendar({ searchParams }: { searchParams: Record<
   const q = (p: Record<string, string>) => `/calendar?${new URLSearchParams({ view, d: anchor, kind, status, ...(caseFilter ? { case: caseFilter } : {}), ...p })}`;
   const title = view === "agenda" ? `From ${formatDate(anchor)}` : view === "week" ? `Week of ${formatDate(weekStart)}` : new Date(Date.UTC(y, m - 1, 1)).toLocaleString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
   const agenda = items.filter((i) => i.date >= anchor).slice(0, 120);
+  const heatMax = Math.max(1, ...days.map((d) => byDate.get(d)?.length ?? 0));
+
+  // The month at a glance: totals, the busiest day, and how far away the next hearing is.
+  const monthKey = monthStart.slice(0, 7);
+  const monthDays = Array.from({ length: 31 }, (_, i) => addDays(monthStart, i)).filter((d) => d.slice(0, 7) === monthKey);
+  const monthItems = items.filter((i) => i.date.slice(0, 7) === monthKey);
+  const mHearings = monthItems.filter((i) => i.kind === "hearing").length;
+  const mDeadlines = monthItems.filter((i) => i.kind === "deadline").length;
+  const busiest = monthDays.reduce<{ d: string; n: number } | null>((b, d) => { const n = byDate.get(d)?.length ?? 0; return n > (b?.n ?? 0) ? { d, n } : b; }, null);
+  const nextHearing = items.filter((i) => i.kind === "hearing" && i.date >= today && i.status !== "superseded").sort((a, b) => a.date.localeCompare(b.date))[0];
+  const daysAway = nextHearing ? Math.round((Date.parse(nextHearing.date) - Date.parse(today)) / 86400000) : null;
+  const stripMax = Math.max(1, ...monthDays.map((d) => byDate.get(d)?.length ?? 0));
 
   return (
     <>
@@ -75,6 +87,29 @@ export default async function Calendar({ searchParams }: { searchParams: Record<
         </form>
       </div>
 
+      {view !== "agenda" && (
+        <section className="cal-glance theme-feature mb-4 rounded-xl p-4 shadow-glow sm:p-5" aria-label="Month at a glance">
+          <div className="relative grid gap-4 md:grid-cols-[auto_1fr] md:items-center">
+            <div className="flex flex-wrap gap-x-6 gap-y-3">
+              <div><div className="display num text-[30px] font-semibold leading-none">{mHearings}</div><div className="mt-1 text-xs text-muted">hearing{mHearings === 1 ? "" : "s"} this month</div></div>
+              <div><div className="display num text-[30px] font-semibold leading-none">{mDeadlines}</div><div className="mt-1 text-xs text-muted">deadline{mDeadlines === 1 ? "" : "s"}</div></div>
+              <div><div className="display num text-[30px] font-semibold leading-none">{daysAway === null ? "–" : daysAway === 0 ? "Today" : daysAway}</div><div className="mt-1 text-xs text-muted">{daysAway === null ? "no hearing ahead" : daysAway === 0 ? `next hearing · ${nextHearing!.caseNumber}` : `day${daysAway === 1 ? "" : "s"} to next hearing · ${nextHearing!.caseNumber}`}</div></div>
+            </div>
+            <div className="min-w-0">
+              <div className="mb-1.5 flex justify-between text-[11px] text-muted"><span>Day by day</span>{busiest && <span>Busiest: {formatDate(busiest.d)} ({busiest.n})</span>}</div>
+              <div className="flex h-12 items-end gap-[3px]">
+                {monthDays.map((d, i) => {
+                  const n = byDate.get(d)?.length ?? 0;
+                  return (
+                    <Link key={d} href={q({ view: "agenda", d })} title={`${formatDate(d)}: ${n} item${n === 1 ? "" : "s"}`} aria-label={`${formatDate(d)}: ${n} items`} className={cx("cal-strip flex-1 rounded-sm", d === today && "cal-strip-today")} style={{ height: `${n ? 22 + (n / stripMax) * 78 : 10}%`, opacity: n ? 1 : 0.35, animationDelay: `${i * 18}ms` }} />
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {view === "agenda" ? (
         agenda.length ? (
           <Card>
@@ -94,12 +129,12 @@ export default async function Calendar({ searchParams }: { searchParams: Record<
         <div className="card overflow-x-auto">
           <div className="grid min-w-[720px] grid-cols-7 border-b border-line">{DOW.map((d) => <div key={d} className="th text-center">{d}</div>)}</div>
           <div className="grid min-w-[720px] grid-cols-7">
-            {days.map((d) => {
+            {days.map((d, idx) => {
               const inMonth = view === "week" || d.slice(0, 7) === monthStart.slice(0, 7);
               const list = byDate.get(d) ?? [];
               return (
-                <div key={d} className={cx("border-b border-r border-line p-1.5", view === "week" ? "min-h-[220px]" : "min-h-[104px]", !inMonth && "bg-paper/60")}>
-                  <div className={cx("mb-1 text-xs", d === today ? "inline-grid h-6 w-6 place-items-center rounded-full bg-navy-900 font-semibold text-surface" : inMonth ? "text-ink" : "text-muted")}>{Number(d.slice(8))}</div>
+                <div key={d} style={{ "--r": Math.floor(idx / 7), "--c": idx % 7, "--heat": list.length / heatMax } as React.CSSProperties} className={cx("cal-cell border-b border-r border-line p-1.5", view === "week" ? "min-h-[220px]" : "min-h-[104px]", !inMonth && "bg-paper/60", idx % 7 >= 5 && "cal-weekend")}>
+                  <div className={cx("mb-1 text-xs", d === today ? "cal-today inline-grid h-6 w-6 place-items-center rounded-full bg-navy-900 font-semibold text-surface" : inMonth ? "text-ink" : "text-muted")}>{Number(d.slice(8))}</div>
                   <div className="space-y-1">{list.slice(0, view === "week" ? 12 : 3).map(chip)}{list.length > (view === "week" ? 12 : 3) && <Link href={q({ view: "agenda", d })} className="text-[11px] text-navy-800">+{list.length - 3} more</Link>}</div>
                 </div>
               );
