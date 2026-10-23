@@ -88,7 +88,7 @@ export async function generate(args: GenerateArgs): Promise<GenerateResult> {
       const r = await p.attempt({ ...args, model: p.model, signal: abort.signal, timeoutMs });
       clearTimeout(timer);
       const usage: AIUsage = { inputTokens: r.inputTokens, outputTokens: r.outputTokens, thoughtsTokens: r.thoughtsTokens, attempts: attempt, ms: Date.now() - started };
-      logger.info("ai.call", { task: args.task, requestId: args.requestId, provider: p.name, model: p.model, attempt, ms: Date.now() - t0, outcome: r.outcome, inputTokens: r.inputTokens, outputTokens: r.outputTokens, thoughtsTokens: r.thoughtsTokens });
+      logger.info("ai.call", { task: args.task, requestId: args.requestId, provider: p.name, model: p.model, attempt, ms: Date.now() - t0, outcome: r.outcome, usageIn: r.inputTokens, usageOut: r.outputTokens, usageThinking: r.thoughtsTokens }); // "token" in a field name is redacted by the logger
       if (r.outcome === "blocked") throw new AIError("blocked");
       if (r.outcome === "truncated") throw new AIError("invalid_output", "max_tokens");
       if (!r.text.trim()) throw new AIError("invalid_output", "empty");
