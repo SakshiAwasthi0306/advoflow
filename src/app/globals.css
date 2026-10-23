@@ -3,84 +3,84 @@
 @tailwind utilities;
 
 /* AdvoFlow visual identity
-   Ivory paper, forest-green ink, a terracotta accent kept for what genuinely needs attention.
-   Confirmed facts are "ink" (solid, high contrast). AI suggestions are "pencil" (sepia, dashed) until an advocate
-   confirms them. Colour always means something: status colours are paired with an icon or a word. */
+   Clean white surfaces on a cool off-white page, deep navy for the brand and primary actions, a clear blue for
+   what is current or active, and restrained status colours. Confirmed facts are solid ink; AI suggestions are
+   "pencil" (teal, dashed) until an advocate confirms them. Status colour is always paired with an icon or a word. */
 
 @layer base {
-  /* Tokens are R G B triplets. (The brand scale keeps its historical name "navy" in class names; it is forest green.) */
+  /* Tokens are R G B triplets. The brand scale is called "navy" in class names. */
   :root {
     color-scheme: light;
-    --c-navy-950: 12 31 23;
-    --c-navy-900: 25 62 46;
-    --c-navy-800: 34 82 61;
-    --c-navy-700: 52 110 84;
-    --c-navy-100: 219 232 223;
-    --c-navy-50: 237 243 238;
-    --c-paper: 248 245 238;
-    --c-surface: 255 254 250;
-    --c-sidebar: 242 238 228;
-    --c-ink: 27 35 30;
-    --c-muted: 99 103 95;
-    --c-line: 228 222 209;
-    --c-accent: 176 82 48;
-    --c-accent-soft: 251 237 228;
-    --c-accent-line: 237 198 176;
-    --c-danger: 166 45 32;
-    --c-danger-soft: 252 238 235;
-    --c-danger-line: 241 202 195;
-    --c-warn: 146 86 6;
-    --c-warn-soft: 252 244 225;
-    --c-warn-line: 238 215 163;
-    --c-ok: 47 110 66;
-    --c-ok-soft: 236 245 236;
-    --c-ok-line: 196 222 196;
-    --c-neutral: 88 92 86;
-    --c-neutral-soft: 242 240 234;
-    --c-neutral-line: 222 218 207;
-    --c-demo: 66 86 122;
-    --c-demo-soft: 236 240 247;
-    --c-demo-line: 204 213 230;
-    --c-ai: 117 82 24;
-    --c-ai-soft: 252 247 233;
-    --c-ai-line: 222 196 140;
+    --c-navy-950: 5 22 40;
+    --c-navy-900: 10 37 64;
+    --c-navy-800: 22 58 96;
+    --c-navy-700: 36 92 160;
+    --c-navy-100: 218 229 242;
+    --c-navy-50: 238 243 249;
+    --c-paper: 245 247 250;
+    --c-surface: 255 255 255;
+    --c-sidebar: 250 251 252;
+    --c-ink: 16 32 52;
+    --c-muted: 88 104 122;
+    --c-line: 225 230 237;
+    --c-accent: 33 115 220;
+    --c-accent-soft: 234 242 253;
+    --c-accent-line: 190 213 245;
+    --c-danger: 190 40 40;
+    --c-danger-soft: 253 238 238;
+    --c-danger-line: 245 200 200;
+    --c-warn: 166 96 0;
+    --c-warn-soft: 254 245 226;
+    --c-warn-line: 242 214 158;
+    --c-ok: 20 120 84;
+    --c-ok-soft: 232 246 240;
+    --c-ok-line: 184 224 207;
+    --c-neutral: 78 92 108;
+    --c-neutral-soft: 241 244 247;
+    --c-neutral-line: 219 225 232;
+    --c-demo: 92 78 140;
+    --c-demo-soft: 243 241 250;
+    --c-demo-line: 214 208 235;
+    --c-ai: 18 110 112;
+    --c-ai-soft: 236 248 247;
+    --c-ai-line: 150 206 203;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       color-scheme: dark;
-      --c-navy-950: 4 10 7;
-      --c-navy-900: 160 205 178;
-      --c-navy-800: 182 218 196;
-      --c-navy-700: 124 176 146;
-      --c-navy-100: 40 62 50;
-      --c-navy-50: 30 44 36;
-      --c-paper: 17 20 18;
-      --c-surface: 25 29 26;
-      --c-sidebar: 21 25 22;
-      --c-ink: 234 231 221;
-      --c-muted: 162 163 152;
-      --c-line: 47 53 48;
-      --c-accent: 236 150 115;
-      --c-accent-soft: 60 36 27;
-      --c-accent-line: 104 60 43;
-      --c-danger: 240 156 146;
-      --c-danger-soft: 62 33 30;
-      --c-danger-line: 108 52 46;
-      --c-warn: 232 178 98;
-      --c-warn-soft: 56 43 22;
-      --c-warn-line: 100 76 38;
-      --c-ok: 138 202 150;
-      --c-ok-soft: 30 50 35;
-      --c-ok-line: 52 88 60;
-      --c-neutral: 184 184 174;
-      --c-neutral-soft: 36 40 37;
-      --c-neutral-line: 60 66 61;
-      --c-demo: 162 182 220;
-      --c-demo-soft: 32 39 54;
-      --c-demo-line: 58 70 96;
-      --c-ai: 226 192 128;
-      --c-ai-soft: 44 38 26;
-      --c-ai-line: 96 80 50;
+      --c-navy-950: 2 8 16;
+      --c-navy-900: 156 194 240;
+      --c-navy-800: 182 211 246;
+      --c-navy-700: 118 166 228;
+      --c-navy-100: 36 56 86;
+      --c-navy-50: 26 40 62;
+      --c-paper: 11 20 33;
+      --c-surface: 17 29 46;
+      --c-sidebar: 13 24 39;
+      --c-ink: 230 236 244;
+      --c-muted: 150 165 184;
+      --c-line: 38 54 76;
+      --c-accent: 110 170 245;
+      --c-accent-soft: 24 44 74;
+      --c-accent-line: 46 80 128;
+      --c-danger: 242 150 150;
+      --c-danger-soft: 60 28 32;
+      --c-danger-line: 106 48 54;
+      --c-warn: 236 186 104;
+      --c-warn-soft: 52 40 20;
+      --c-warn-line: 96 74 36;
+      --c-ok: 120 210 170;
+      --c-ok-soft: 20 48 40;
+      --c-ok-line: 40 90 72;
+      --c-neutral: 176 188 202;
+      --c-neutral-soft: 28 40 58;
+      --c-neutral-line: 52 68 90;
+      --c-demo: 186 176 236;
+      --c-demo-soft: 36 32 62;
+      --c-demo-line: 66 58 108;
+      --c-ai: 118 214 208;
+      --c-ai-soft: 16 46 50;
+      --c-ai-line: 40 98 100;
     }
   }
   html { -webkit-text-size-adjust: 100%; }
@@ -88,45 +88,44 @@
     @apply bg-paper font-sans text-ink antialiased;
     font-size: 15px;
     line-height: 1.55;
-    font-feature-settings: "ss01", "cv11";
+    font-feature-settings: "ss01";
   }
   h1, h2, h3 { @apply text-ink; }
-  h1 { font-variation-settings: "SOFT" 30, "opsz" 72; }
-  :focus-visible { outline: 2px solid rgb(var(--c-navy-700)); outline-offset: 2px; border-radius: 6px; }
+  :focus-visible { outline: 2px solid rgb(var(--c-accent)); outline-offset: 2px; border-radius: 6px; }
   ::selection { background: rgb(var(--c-navy-100)); }
   [dir="rtl"] { text-align: right; }
 }
 
 @layer components {
   /* Surfaces: a light border, no heavy shadows. "panel" is a borderless section with a hairline above it. */
-  .card { @apply rounded-[10px] border border-line bg-surface; }
-  .card-raised { @apply rounded-[10px] border border-line bg-surface shadow-lift; }
+  .card { @apply rounded-lg border border-line bg-surface shadow-card; }
+  .card-raised { @apply rounded-lg border border-line bg-surface shadow-lift; }
   .panel { @apply border-t border-line pt-4; }
 
-  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-lg border px-3.5 py-2 text-sm font-medium transition-[background-color,border-color,color,box-shadow,transform] duration-150 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 disabled:active:translate-y-0; }
-  .btn-primary { @apply btn border-navy-900 bg-navy-900 text-surface shadow-[inset_0_1px_0_rgb(255_255_255/0.08)] hover:border-navy-800 hover:bg-navy-800; }
+  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-lg border px-3.5 py-2 text-sm font-semibold transition-[background-color,border-color,color,box-shadow] duration-150 disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-primary { @apply btn border-navy-900 bg-navy-900 text-surface hover:border-navy-800 hover:bg-navy-800 active:bg-navy-950; }
   .btn-accent { @apply btn border-accent bg-accent text-surface hover:brightness-110; }
-  .btn-secondary { @apply btn border-line bg-surface text-ink hover:border-navy-700/40 hover:bg-navy-50; }
+  .btn-secondary { @apply btn border-[rgb(var(--c-line))] bg-surface text-navy-900 shadow-card hover:border-navy-700/40 hover:bg-navy-50; }
   .btn-ghost { @apply btn border-transparent bg-transparent text-navy-800 hover:bg-navy-50; }
   .btn-danger { @apply btn border-danger/60 bg-surface text-danger hover:bg-danger-soft; }
   .btn-sm { @apply px-2.5 py-1 text-[13px]; }
 
-  .input { @apply w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink shadow-[inset_0_1px_1px_rgb(0_0_0/0.03)] transition-colors placeholder:text-muted/70 hover:border-navy-700/30 focus:border-navy-700 focus:outline-none focus:ring-[3px] focus:ring-navy-100 aria-[invalid=true]:border-danger; }
-  .label { @apply mb-1 block text-[13px] font-medium text-ink; }
+  .input { @apply w-full rounded-lg border border-[rgb(var(--c-neutral-line))] bg-surface px-3 py-2 text-sm text-ink transition-[border-color,box-shadow] placeholder:text-muted/70 hover:border-navy-700/40 focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent/15 aria-[invalid=true]:border-danger; }
+  .label { @apply mb-1 block text-[13px] font-semibold text-navy-900; }
   .hint { @apply mt-1 text-xs text-muted; }
   .th { @apply px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-muted; }
   .td { @apply border-t border-line px-3 py-2.5 align-top text-sm; }
-  .link { @apply text-navy-800 underline decoration-navy-700/30 underline-offset-[3px] transition-colors hover:decoration-navy-700; }
+  .link { @apply font-medium text-accent underline decoration-accent/0 underline-offset-[3px] transition-colors hover:decoration-accent; }
 
   /* Type helpers */
   .kicker { @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-muted; }
-  .display { @apply font-serif tracking-[-0.015em]; }
+  .display { @apply font-serif tracking-[-0.02em]; }
   /* Case numbers, CNRs and other identifiers: monospaced so they line up and are easy to read aloud in court. */
   .ref { @apply font-mono text-[0.92em] tracking-[-0.01em] tabular-nums; }
   .num { font-variant-numeric: tabular-nums lining-nums; }
 
   /* AI suggestions look like pencil, not ink: unverified until confirmed by an advocate. */
-  .ai-draft { @apply rounded-[10px] border border-dashed border-ai-line bg-ai-soft; }
+  .ai-draft { @apply rounded-lg border border-dashed border-ai-line bg-ai-soft; }
   .ai-chip { @apply inline-flex items-center gap-1 rounded-md border border-dashed border-ai-line bg-ai-soft px-1.5 py-0.5 text-[11.5px] font-medium text-ai; }
 
   /* Loading placeholder */

@@ -31,8 +31,8 @@ const config: Config = {
         mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       boxShadow: {
-        card: "0 1px 2px rgb(40 34 20 / .04)",
-        lift: "0 1px 2px rgb(40 34 20 / .05), 0 8px 24px -12px rgb(40 34 20 / .18)",
+        card: "0 1px 2px rgb(10 37 64 / .04)",
+        lift: "0 1px 2px rgb(10 37 64 / .04), 0 4px 12px rgb(0 42 120 / .08)",
       },
       borderRadius: { xl: "12px" },
     },

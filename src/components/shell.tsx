@@ -45,12 +45,12 @@ function NavLinks({ onNavigate, reviewCount }: { onNavigate?: () => void; review
                     href={href}
                     onClick={onNavigate}
                     aria-current={active ? "page" : undefined}
-                    className={`group relative flex items-center gap-2.5 rounded-md px-3 py-[7px] text-[14px] transition-colors ${active ? "bg-surface font-medium text-navy-900 shadow-card" : "text-ink/70 hover:bg-surface/60 hover:text-ink"}`}
+                    className={`group relative flex items-center gap-2.5 rounded-md px-3 py-[7px] text-[14px] transition-colors ${active ? "bg-navy-50 font-semibold text-navy-900" : "text-ink/70 hover:bg-navy-50/60 hover:text-navy-900"}`}
                   >
                     {active && <span aria-hidden className="absolute -left-3 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r bg-accent" />}
-                    <I className={`h-[17px] w-[17px] ${active ? "text-navy-800" : "text-muted group-hover:text-ink"}`} aria-hidden />
+                    <I className={`h-[17px] w-[17px] ${active ? "text-accent" : "text-muted group-hover:text-navy-900"}`} strokeWidth={active ? 2.25 : 2} aria-hidden />
                     <span className="flex-1">{label}</span>
-                    {href === "/upload" && reviewCount > 0 && <span className="num rounded bg-accent px-1.5 text-[11px] font-semibold leading-5 text-surface" title={`${reviewCount} to review`}>{reviewCount}</span>}
+                    {href === "/upload" && reviewCount > 0 && <span className="num rounded-full bg-accent px-1.5 text-[11px] font-semibold leading-5 text-surface" title={`${reviewCount} to review`}>{reviewCount}</span>}
                   </Link>
                 </li>
               );

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, IBM_Plex_Mono, Instrument_Sans } from "next/font/google";
+import { Hanken_Grotesk, IBM_Plex_Mono, Instrument_Sans } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/client";
 import { Shell, type Alert } from "@/components/shell";
@@ -10,10 +10,10 @@ import { dashboard } from "@/lib/services/queries";
 import { config } from "@/lib/config";
 
 export const metadata: Metadata = { title: { default: "AdvoFlow", template: "%s · AdvoFlow" }, description: "Court diary, order review and legal research for advocates" };
-export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: [{ media: "(prefers-color-scheme: light)", color: "#F8F5EE" }, { media: "(prefers-color-scheme: dark)", color: "#111412" }] };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: [{ media: "(prefers-color-scheme: light)", color: "#F5F7FA" }, { media: "(prefers-color-scheme: dark)", color: "#0B1421" }] };
 
-// Display serif with soft character for headings; a clean, warm sans for the interface; a mono for case numbers and dates.
-const display = Fraunces({ subsets: ["latin"], variable: "--font-display", axes: ["SOFT", "opsz"], display: "swap" });
+// A crisp grotesk for headings; a clean sans for the interface; a mono for case numbers and dates.
+const display = Hanken_Grotesk({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-display", display: "swap" });
 const sans = Instrument_Sans({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-mono", display: "swap" });
 const fonts = `${display.variable} ${sans.variable} ${mono.variable}`;

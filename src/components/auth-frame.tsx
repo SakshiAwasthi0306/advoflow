@@ -12,7 +12,7 @@ const PROMISES = [
 export function AuthFrame({ title, subtitle, children, footer, wide }: { title: string; subtitle?: ReactNode; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
   return (
     <main className="grid min-h-screen lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-      <aside className="relative hidden overflow-hidden bg-[rgb(25_62_46)] px-12 py-12 text-[rgb(248_245_238)] lg:flex lg:flex-col">
+      <aside className="relative hidden overflow-hidden bg-[rgb(10_37_64)] px-12 py-12 text-[rgb(248_245_238)] lg:flex lg:flex-col">
         <div className="flex items-center gap-3">
           <Seal className="h-9 w-9 [&_circle:first-child]:fill-[rgb(248_245_238/0.12)]" />
           <span className="display text-[22px] font-medium tracking-tight">AdvoFlow</span>
@@ -21,7 +21,7 @@ export function AuthFrame({ title, subtitle, children, footer, wide }: { title: 
           <p className="display text-[34px] font-normal leading-[1.15]">Your court diary,<br />kept in order.</p>
           <ul className="mt-8 space-y-4 text-[15px] text-[rgb(248_245_238/0.82)]">
             {PROMISES.map((p) => (
-              <li key={p.text} className="flex gap-3"><p.icon className="mt-0.5 h-5 w-5 shrink-0 text-[rgb(236_160_125)]" aria-hidden />{p.text}</li>
+              <li key={p.text} className="flex gap-3"><p.icon className="mt-0.5 h-5 w-5 shrink-0 text-[rgb(120_178_245)]" aria-hidden />{p.text}</li>
             ))}
           </ul>
         </div>
